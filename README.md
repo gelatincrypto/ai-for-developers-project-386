@@ -137,7 +137,8 @@ workflow Хекслета не изменяются; публикация и р�
 Отдельный workflow `.github/workflows/release-please.yml` запускает
 [Release Please Action v4](https://github.com/googleapis/release-please-action)
 после push в `main`. Стратегия `simple` ведет **одну версию всего репозитория**
-в `version.txt` и общий `CHANGELOG.md` (создаются release PR); версии C#
+в заголовке release PR и общем `CHANGELOG.md`; после merge release PR создаются
+тег и GitHub Release. Отдельного `version.txt` сейчас нет; версии C#
 и `frontend/package.json` отдельно не обновляются. Публикации пакетов нет.
 
 1. В GitHub откройте **Settings → Actions → General → Workflow permissions**
