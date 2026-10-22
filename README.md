@@ -52,10 +52,11 @@ cd frontend
 npm run dev
 ```
 
-Откройте `http://localhost:5173` (точный адрес выводит Vite). Стартовая
-страница показывает доступность backend. Запрос `/api/health` идет через
-dev-proxy Vite на `http://localhost:5005`; backend должен быть запущен.
-Бронирование пока не реализовано.
+Откройте `http://localhost:5173` (точный адрес выводит Vite). На главной
+странице (`/`) описан сервис, кнопка «Перейти к бронированию» ведёт на
+`/booking`. Пока там заглушка: бронирование недоступно. На этой странице
+показана доступность backend: запрос `/api/health` идёт через dev-proxy Vite
+на `http://localhost:5005`; для проверки статуса backend должен быть запущен.
 
 Проверка production-сборки из папки `frontend`:
 
@@ -64,7 +65,8 @@ npm run build
 ```
 
 Результат находится в `frontend/dist`. Dev-proxy не входит в production-сборку;
-при развертывании нужно отдельно маршрутизировать `/api` на backend.
+при развёртывании нужно отдельно маршрутизировать `/api` на backend и направлять
+запросы к SPA-маршрутам (например, `/booking`) на `index.html`.
 
 ---
 
@@ -88,6 +90,9 @@ API через `WebApplicationFactory<Program>` и проверяет, что `G
 возвращает HTTP 200 и JSON `{"status":"ok"}`. Отдельно запускать backend
 или frontend не нужно.
 
+Фронтенд-тест маршрута с главной страницы на `/booking` запускается командой
+`npm --prefix frontend test`. Для него backend не нужен.
+
 Зависимости backend восстанавливаются только из публичного nuget.org:
 репозиторный `NuGet.Config` исключает унаследованные источники пакетов.
 Для обычного восстановления выполните:
@@ -107,6 +112,7 @@ dotnet format Calendar.slnx --verify-no-changes --no-restore
 dotnet build Calendar.slnx -c Release -warnaserror --no-restore
 dotnet test Calendar.slnx -c Release --no-build --no-restore
 npm --prefix frontend run lint
+npm --prefix frontend test
 npm --prefix frontend run build
 ```
 
@@ -116,7 +122,7 @@ npm --prefix frontend run build
 
 Правила форматирования заданы в `.editorconfig`, встроенные анализаторы .NET
 включены в `Directory.Build.props`. Сгенерированные C#-файлы исключены из
-анализа по стандартным суффиксам. Frontend использует Oxlint; команда `build`
+анализа по стандартным суффиксам. Frontend использует Oxlint и Vitest; команда `build`
 сначала проверяет TypeScript (`tsc -b`), затем собирает приложение Vite.
 
 ## CI
@@ -126,7 +132,7 @@ Workflow `.github/workflows/ci.yml` запускается на каждый pus
 
 - Backend (.NET 10): restore только из nuget.org через `NuGet.Config`,
   форматирование, Release-сборку с предупреждениями как ошибками и smoke-тест.
-- Frontend (Node.js 22): `npm ci`, Oxlint и production-сборку;
+- Frontend (Node.js 22): `npm ci`, Oxlint, Vitest и production-сборку;
   кеш npm привязан к `frontend/package-lock.json`.
 
 Workflow имеет только право чтения содержимого репозитория. Существующие
