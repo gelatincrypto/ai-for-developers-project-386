@@ -241,6 +241,50 @@ test('гость после конфликта выбирает другой с�
   expect(screen.getByText(/Окончание:.*10:00/)).toBeTruthy()
 })
 
+test('после подтверждения переход к другому типу показывает его календарь', async () => {
+  vi.stubGlobal('Request', class {
+    url: string
+    method: string
+    constructor(url: string, init: RequestInit) {
+      this.url = url
+      this.method = init.method ?? 'GET'
+    }
+  })
+  vi.stubGlobal('fetch', vi.fn(async (request: { method: string; url: string }) => {
+    const eventTypes = [
+      { id: 'first', title: 'Первый тип', description: 'Первый звонок', durationMinutes: 30 },
+      { id: 'second', title: 'Второй тип', description: 'Второй звонок', durationMinutes: 30 },
+    ]
+    const data = request.url.endsWith('/api/health') ? '{"status":"ok"}'
+      : request.url.endsWith('/api/event-types') ? JSON.stringify(eventTypes)
+        : request.url.endsWith('/api/event-types/first/slots')
+          ? '{"ownerTimeZone":"Europe/Moscow","slots":[{"start":"2026-10-26T09:00:00+03:00","end":"2026-10-26T09:30:00+03:00"}]}'
+          : request.url.endsWith('/api/event-types/second/slots')
+            ? '{"ownerTimeZone":"Europe/Moscow","slots":[{"start":"2026-10-26T10:00:00+03:00","end":"2026-10-26T10:30:00+03:00"}]}'
+            : JSON.stringify({ id: 'booking-1', eventType: eventTypes[0], start: '2026-10-26T09:00:00+03:00', end: '2026-10-26T09:30:00+03:00' })
+    return { ok: true, status: 200, headers: new Headers({ 'Content-Type': 'application/json' }), text: async () => data }
+  }))
+
+  render(
+    <MantineProvider env="test">
+      <MemoryRouter initialEntries={['/booking/first']}>
+        <App />
+      </MemoryRouter>
+    </MantineProvider>,
+  )
+
+  fireEvent.click(await screen.findByRole('button', { name: /26 окт.*09:00/ }))
+  fireEvent.change(screen.getByRole('textbox', { name: 'Ваше имя' }), { target: { value: 'Гость' } })
+  fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), { target: { value: 'guest@example.com' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Забронировать' }))
+  expect(await screen.findByText('Тип события: Первый тип')).toBeTruthy()
+
+  fireEvent.click(screen.getByRole('link', { name: 'Открыть календарь: Второй тип' }))
+  expect(await screen.findByRole('button', { name: /26 окт.*10:00/ })).toBeTruthy()
+  expect(screen.queryByRole('heading', { name: 'Бронирование подтверждено' })).toBeNull()
+  expect(screen.queryByRole('button', { name: /26 окт.*09:00/ })).toBeNull()
+})
+
 test('владелец после входа видит общий список с контактами гостей', async () => {
   vi.stubGlobal('Request', class {
     url: string
