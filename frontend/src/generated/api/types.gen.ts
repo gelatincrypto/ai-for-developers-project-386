@@ -4,6 +4,16 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type AvailableSlot = {
+    start: string;
+    end: string;
+};
+
+export type AvailableSlots = {
+    ownerTimeZone: string;
+    slots: Array<AvailableSlot>;
+};
+
 export type EventType = {
     id: string;
     title: string;
@@ -62,6 +72,24 @@ export type CreateEventTypeResponses = {
 };
 
 export type CreateEventTypeResponse = CreateEventTypeResponses[keyof CreateEventTypeResponses];
+
+export type ListSlotsData = {
+    body?: never;
+    path: {
+        eventTypeId: string;
+    };
+    query?: never;
+    url: '/api/event-types/{eventTypeId}/slots';
+};
+
+export type ListSlotsResponses = {
+    /**
+     * The request has succeeded.
+     */
+    200: AvailableSlots;
+};
+
+export type ListSlotsResponse = ListSlotsResponses[keyof ListSlotsResponses];
 
 export type GetHealthData = {
     body?: never;

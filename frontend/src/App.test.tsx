@@ -119,6 +119,8 @@ test('созданный владельцем тип виден гостю в к
     const data = request.url.endsWith('/api/owner/session')
       ? '{"username":"test-owner"}'
       : request.url.endsWith('/api/health') ? '{"status":"ok"}'
+      : request.url.endsWith('/api/event-types/consultation/slots')
+        ? '{"ownerTimeZone":"Europe/Moscow","slots":[{"start":"2026-10-26T09:00:00+03:00","end":"2026-10-26T09:45:00+03:00"}]}'
       : created ? '[{"id":"consultation","title":"Консультация","description":"Знакомство","durationMinutes":45}]' : '[]'
     return {
       ok: true,
@@ -152,4 +154,34 @@ test('созданный владельцем тип виден гостю в к
   expect(screen.getByText('45 мин.')).toBeTruthy()
   fireEvent.click(screen.getByRole('link', { name: 'Открыть календарь: Консультация' }))
   expect(await screen.findByText('Выбранный тип: Консультация')).toBeTruthy()
+  expect(await screen.findByText('Часовой пояс владельца: Europe/Moscow')).toBeTruthy()
+  expect(await screen.findByText(/26 окт.*09:00/)).toBeTruthy()
+})
+
+test('пустой календарь объясняет отсутствие слотов', async () => {
+  vi.stubGlobal('Request', class {
+    url: string
+    constructor(url: string) {
+      this.url = url
+    }
+  })
+  vi.stubGlobal('fetch', vi.fn(async (request: { url: string }) => ({
+    ok: true,
+    status: 200,
+    headers: new Headers({ 'Content-Type': 'application/json' }),
+    text: async () => request.url.endsWith('/api/health') ? '{"status":"ok"}'
+      : request.url.endsWith('/slots') ? '{"ownerTimeZone":"Europe/Moscow","slots":[]}'
+      : '[{"id":"long","title":"Длинный звонок","description":"Тест","durationMinutes":541}]',
+  })))
+
+  render(
+    <MantineProvider env="test">
+      <MemoryRouter initialEntries={['/booking']}>
+        <App />
+      </MemoryRouter>
+    </MantineProvider>,
+  )
+
+  fireEvent.click(await screen.findByRole('link', { name: 'Открыть календарь: Длинный звонок' }))
+  expect(await screen.findByText('В ближайшие 14 дней свободных слотов нет')).toBeTruthy()
 })

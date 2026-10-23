@@ -6,6 +6,7 @@ tags:
   - name: Health
   - name: Owner
   - name: EventTypes
+  - name: Slots
 paths:
   /api/event-types:
     get:
@@ -40,6 +41,24 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/EventTypeInput'
+  /api/event-types/{eventTypeId}/slots:
+    get:
+      operationId: listSlots
+      parameters:
+        - name: eventTypeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailableSlots'
+      tags:
+        - Slots
   /api/health:
     get:
       operationId: getHealth
@@ -95,6 +114,28 @@ paths:
         - Owner
 components:
   schemas:
+    AvailableSlot:
+      type: object
+      required:
+        - start
+        - end
+      properties:
+        start:
+          type: string
+        end:
+          type: string
+    AvailableSlots:
+      type: object
+      required:
+        - ownerTimeZone
+        - slots
+      properties:
+        ownerTimeZone:
+          type: string
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailableSlot'
     EventType:
       type: object
       required:
