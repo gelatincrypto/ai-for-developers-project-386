@@ -16,4 +16,28 @@ namespace CalendarApi {
   @get
   @route("/api/health")
   op getHealth(): HealthResponse;
+
+  model OwnerCredentials {
+    username: string;
+    password: string;
+  }
+
+  model OwnerSession {
+    username: string;
+  }
+
+  @tag("Owner")
+  @post
+  @route("/api/owner/session")
+  op login(@body credentials: OwnerCredentials): OwnerSession;
+
+  @tag("Owner")
+  @get
+  @route("/api/owner/session")
+  op getOwnerSession(): OwnerSession;
+
+  @tag("Owner")
+  @delete
+  @route("/api/owner/session")
+  op logout(): void;
 }
