@@ -10,8 +10,9 @@
 
 ## Стек
 
-- C# / ASP.NET Core 10 Minimal API
+- C# / ASP.NET Core 10 (MVC-контроллеры)
 - React / TypeScript / Vite / Mantine
+- TypeSpec / OpenAPI 3.0 для контракта API
 
 ## Установка
 
@@ -45,6 +46,36 @@ curl http://localhost:5005/api/health
 
 Ожидаемый ответ: HTTP 200, `{"status":"ok"}`.
 
+Контракт текущего API описан в `api-contract/main.tsp`. Для генерации из корня
+репозитория нужны Node.js 22 и Java:
+
+```bash
+npm --prefix api-contract ci
+npm --prefix frontend ci
+npm --prefix api-contract run generate
+npm --prefix api-contract run generate:server
+npm --prefix frontend run generate:api
+```
+
+OpenAPI сохраняется в `api-contract/tsp-output/@typespec/openapi3/openapi.yaml`,
+серверные модели и заготовки маршрутов — в `src/Calendar.Api/Generated/OpenApi/`,
+клиентский SDK — в `frontend/src/generated/api/`. Все результаты хранятся в
+репозитории. Генерируйте в указанном порядке и не редактируйте сгенерированные
+файлы вручную.
+
+Серверные файлы генерирует OpenAPI Generator **7.21.0** (версия закреплена в
+`api-contract/openapitools.json`), поэтому для локальной генерации необходима Java.
+Генератор создаёт абстрактный контроллер, типы и
+атрибут проверки модели; реальная логика находится в
+`src/Calendar.Api/Controllers/HealthController.cs`. `[ApiController]` и
+атрибуты моделей проверяют входные данные, когда они появятся в контракте.
+Пока `GET /api/health` не принимает параметров или тела, поэтому проверять
+на нём входящий запрос по модели нечего. Дополнительные бизнес-правила не
+порождаются генератором и требуют отдельной реализации.
+Контракт пока описывает только существующий `GET /api/health` — маршруты
+бронирования добавим после утверждения их поведения. TypeSpec не генерирует
+бизнес-логику сервера.
+
 В другом терминале запустите frontend:
 
 ```bash
@@ -55,7 +86,7 @@ npm run dev
 Откройте `http://localhost:5173` (точный адрес выводит Vite). На главной
 странице (`/`) описан сервис, кнопка «Перейти к бронированию» ведёт на
 `/booking`. Пока там заглушка: бронирование недоступно. На этой странице
-показана доступность backend: запрос `/api/health` идёт через dev-proxy Vite
+показана доступность backend: SDK запрашивает `/api/health` через dev-proxy Vite
 на `http://localhost:5005`; для проверки статуса backend должен быть запущен.
 
 Проверка production-сборки из папки `frontend`:
@@ -90,8 +121,8 @@ API через `WebApplicationFactory<Program>` и проверяет, что `G
 возвращает HTTP 200 и JSON `{"status":"ok"}`. Отдельно запускать backend
 или frontend не нужно.
 
-Фронтенд-тест маршрута с главной страницы на `/booking` запускается командой
-`npm --prefix frontend test`. Для него backend не нужен.
+Фронтенд-тесты перехода на `/booking` и вызова API через SDK запускаются
+командой `npm --prefix frontend test`. Для них backend не нужен.
 
 Зависимости backend восстанавливаются только из публичного nuget.org:
 репозиторный `NuGet.Config` исключает унаследованные источники пакетов.

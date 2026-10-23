@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Badge, Button, Container, Paper, Stack, Text, Title } from '@mantine/core'
 import { Link } from 'react-router'
+import { getHealth } from '../generated/api'
 
 type ApiStatus = 'loading' | 'available' | 'unavailable'
 
@@ -20,10 +21,8 @@ function BookingPage() {
 
     async function checkHealth() {
       try {
-        const response = await fetch('/api/health', { signal: controller.signal })
-        if (!response.ok) throw new Error('Health check failed')
-        const data = await response.json()
-        if (active) setApiStatus(data.status === 'ok' ? 'available' : 'unavailable')
+        const { data } = await getHealth({ baseUrl: window.location.origin, signal: controller.signal })
+        if (active) setApiStatus(data?.status === 'ok' ? 'available' : 'unavailable')
       } catch {
         if (active) setApiStatus('unavailable')
       } finally {

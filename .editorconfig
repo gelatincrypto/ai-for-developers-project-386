@@ -16,5 +16,8 @@ dotnet_diagnostic.IDE0055.severity = warning
 [*.{g,g.i,generated,Designer}.cs]
 generated_code = true
 
+[src/Calendar.Api/Generated/OpenApi/**/*.cs]
+generated_code = true
+
 [*.md]
 trim_trailing_whitespace = false

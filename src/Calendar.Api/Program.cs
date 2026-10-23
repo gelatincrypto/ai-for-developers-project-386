@@ -1,8 +1,12 @@
+using Calendar.Api.Controllers;
+
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddControllers().AddJsonOptions(options =>
+    options.JsonSerializerOptions.Converters.Add(new HealthStatusJsonConverter()));
 
 var app = builder.Build();
 
-app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
+app.MapControllers();
 
 app.Run();
 
