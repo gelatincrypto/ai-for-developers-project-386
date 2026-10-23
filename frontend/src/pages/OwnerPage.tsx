@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Button, Container, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core'
 import { Link } from 'react-router'
-import { createEventType, getOwnerSession, login, logout } from '../generated/api'
+import { createEventType, getOwnerSession, listOwnerBookings, login, logout, type OwnerMeeting } from '../generated/api'
 
 function OwnerPage() {
   const [username, setUsername] = useState('')
@@ -14,6 +14,8 @@ function OwnerPage() {
   const [description, setDescription] = useState('')
   const [durationMinutes, setDurationMinutes] = useState('30')
   const [created, setCreated] = useState('')
+  const [meetings, setMeetings] = useState<OwnerMeeting[]>([])
+  const [meetingsStatus, setMeetingsStatus] = useState<'loading' | 'ready' | 'error'>('loading')
 
   useEffect(() => {
     let active = true
@@ -27,6 +29,20 @@ function OwnerPage() {
     })
     return () => { active = false }
   }, [])
+
+  useEffect(() => {
+    if (!owner) return
+    let active = true
+    void listOwnerBookings({ baseUrl: window.location.origin }).then(({ data }) => {
+      if (active) {
+        setMeetings(data ?? [])
+        setMeetingsStatus(data ? 'ready' : 'error')
+      }
+    }).catch(() => {
+      if (active) setMeetingsStatus('error')
+    })
+    return () => { active = false }
+  }, [owner])
 
   async function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -52,6 +68,7 @@ function OwnerPage() {
         return
       }
       setOwner(null)
+      setMeetings([])
     } catch {
       setError('Не удалось выйти. Попробуйте ещё раз.')
     }
@@ -97,6 +114,19 @@ function OwnerPage() {
               </Stack>
             </form>
             {created && <Text role="status">Тип события «{created}» создан</Text>}
+            <Title order={2}>Предстоящие встречи</Title>
+            {meetingsStatus === 'loading' && <Text>Загружаем встречи…</Text>}
+            {meetingsStatus === 'error' && <Text role="alert">Не удалось загрузить встречи</Text>}
+            {meetingsStatus === 'ready' && meetings.length === 0 && <Text>Предстоящих встреч нет</Text>}
+            {meetings.map((meeting) => (
+              <Stack key={meeting.id} gap="xs">
+                <Text fw={700}>{meeting.eventType.title}</Text>
+                <Text>Начало: {meeting.start.replace('T', ' ').slice(0, 16)} UTC{meeting.start.slice(-6)}</Text>
+                <Text>Окончание: {meeting.end.replace('T', ' ').slice(0, 16)} UTC{meeting.end.slice(-6)}</Text>
+                <Text>Гость: {meeting.guestName}</Text>
+                <Text>Email гостя: {meeting.guestEmail}</Text>
+              </Stack>
+            ))}
             <Button onClick={() => void signOut()}>Выйти</Button>
           </>
         ) : (

@@ -74,7 +74,13 @@ test('владелец входит в закрытую часть и выход
   })
   let authenticated = false
   vi.stubGlobal('fetch', vi.fn(async (request: { method: string; url: string }) => {
-    expect(request.url).toBe(`${window.location.origin}/api/owner/session`)
+    expect(request.url).toMatch(/\/api\/owner\/(session|bookings)$/)
+    if (request.url.endsWith('/api/owner/bookings')) return {
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      text: async () => '[]',
+    }
     if (request.method === 'POST') authenticated = true
     if (request.method === 'DELETE') authenticated = false
     const status = request.method === 'DELETE' ? 204 : authenticated ? 200 : 401
@@ -116,7 +122,8 @@ test('созданный владельцем тип виден гостю в к
   let created = false
   vi.stubGlobal('fetch', vi.fn(async (request: { method: string; url: string }) => {
     if (request.url.endsWith('/api/event-types') && request.method === 'POST') created = true
-    const data = request.url.endsWith('/api/owner/session')
+    const data = request.url.endsWith('/api/owner/bookings') ? '[]'
+      : request.url.endsWith('/api/owner/session')
       ? '{"username":"test-owner"}'
       : request.url.endsWith('/api/health') ? '{"status":"ok"}'
       : request.url.endsWith('/api/event-types/consultation/slots')
@@ -232,4 +239,33 @@ test('гость после конфликта выбирает другой с�
   expect(screen.getByText('Номер: booking-1')).toBeTruthy()
   expect(screen.getByText('Тип события: Консультация')).toBeTruthy()
   expect(screen.getByText(/Окончание:.*10:00/)).toBeTruthy()
+})
+
+test('владелец после входа видит общий список с контактами гостей', async () => {
+  vi.stubGlobal('Request', class {
+    url: string
+    constructor(url: string) {
+      this.url = url
+    }
+  })
+  vi.stubGlobal('fetch', vi.fn(async (request: { url: string }) => ({
+    ok: true,
+    status: 200,
+    headers: new Headers({ 'Content-Type': 'application/json' }),
+    text: async () => request.url.endsWith('/api/owner/session') ? '{"username":"test-owner"}'
+      : '[{"id":"booking-1","eventType":{"id":"call","title":"Консультация","description":"Тест","durationMinutes":30},"start":"2026-10-21T09:00:00+03:00","end":"2026-10-21T09:30:00+03:00","guestName":"Анна","guestEmail":"anna@example.com"}]',
+  })))
+
+  render(
+    <MantineProvider env="test">
+      <MemoryRouter initialEntries={['/owner']}>
+        <App />
+      </MemoryRouter>
+    </MantineProvider>,
+  )
+
+  expect(await screen.findByRole('heading', { name: 'Предстоящие встречи' })).toBeTruthy()
+  expect(await screen.findByText('Гость: Анна')).toBeTruthy()
+  expect(screen.getByText('Email гостя: anna@example.com')).toBeTruthy()
+  expect(screen.getByText('Начало: 2026-10-21 09:00 UTC+03:00')).toBeTruthy()
 })

@@ -99,4 +99,18 @@ namespace CalendarApi {
   @post
   @route("/api/bookings")
   op createBooking(@body booking: BookingRequest): BookingConfirmation;
+
+  model OwnerMeeting {
+    id: string;
+    eventType: EventType;
+    start: string;
+    end: string;
+    guestName: string;
+    guestEmail: string;
+  }
+
+  @tag("OwnerBookings")
+  @get
+  @route("/api/owner/bookings")
+  op listOwnerBookings(): OwnerMeeting[];
 }
