@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Badge, Button, Container, Paper, Stack, Text, Title } from '@mantine/core'
 import { Link, useParams } from 'react-router'
-import { getHealth, listEventTypes, type EventType } from '../generated/api'
+import { getHealth, listEventTypes, listSlots, type AvailableSlots, type EventType } from '../generated/api'
 
 type ApiStatus = 'loading' | 'available' | 'unavailable'
 
@@ -15,6 +15,8 @@ function BookingPage() {
   const [apiStatus, setApiStatus] = useState<ApiStatus>('loading')
   const [eventTypes, setEventTypes] = useState<EventType[]>([])
   const [catalogStatus, setCatalogStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [calendar, setCalendar] = useState<AvailableSlots | null>(null)
+  const [calendarStatus, setCalendarStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const { eventTypeId } = useParams()
 
   useEffect(() => {
@@ -43,6 +45,20 @@ function BookingPage() {
   }, [])
 
   useEffect(() => {
+    if (!eventTypeId) return
+    let active = true
+    void listSlots({ baseUrl: window.location.origin, path: { eventTypeId } }).then(({ data }) => {
+      if (active) {
+        setCalendar(data ?? null)
+        setCalendarStatus(data ? 'ready' : 'error')
+      }
+    }).catch(() => {
+      if (active) setCalendarStatus('error')
+    })
+    return () => { active = false }
+  }, [eventTypeId])
+
+  useEffect(() => {
     let active = true
     void listEventTypes({ baseUrl: window.location.origin }).then(({ data }) => {
       if (active) {
@@ -63,6 +79,24 @@ function BookingPage() {
           <Stack gap="md" align="flex-start">
             <Text>Бронирование пока недоступно</Text>
             {eventTypeId && <Text>Выбранный тип: {eventTypes.find((item) => item.id === eventTypeId)?.title ?? eventTypeId}</Text>}
+            {eventTypeId && calendarStatus === 'loading' && <Text>Загружаем календарь…</Text>}
+            {eventTypeId && calendarStatus === 'error' && <Text role="alert">Не удалось загрузить календарь</Text>}
+            {eventTypeId && calendar && calendarStatus === 'ready' && (
+              <Stack>
+                <Text>Часовой пояс владельца: {calendar.ownerTimeZone}</Text>
+                {calendar.slots.length === 0 ? <Text>В ближайшие 14 дней свободных слотов нет</Text> : (
+                  calendar.slots.map((slot) => (
+                    <Text key={slot.start}>
+                      {new Intl.DateTimeFormat('ru-RU', {
+                        timeZone: calendar.ownerTimeZone,
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      }).format(new Date(slot.start))}
+                    </Text>
+                  ))
+                )}
+              </Stack>
+            )}
             <Title order={2}>Типы событий</Title>
             {catalogStatus === 'loading' && <Text>Загружаем типы событий…</Text>}
             {catalogStatus === 'error' && <Text role="alert">Не удалось загрузить типы событий</Text>}

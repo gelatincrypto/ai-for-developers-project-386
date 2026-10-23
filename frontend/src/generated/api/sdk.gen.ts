@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateEventTypeData, CreateEventTypeResponses, GetHealthData, GetHealthResponses, GetOwnerSessionData, GetOwnerSessionResponses, ListEventTypesData, ListEventTypesResponses, LoginData, LoginResponses, LogoutData, LogoutResponses } from './types.gen';
+import type { CreateEventTypeData, CreateEventTypeResponses, GetHealthData, GetHealthResponses, GetOwnerSessionData, GetOwnerSessionResponses, ListEventTypesData, ListEventTypesResponses, ListSlotsData, ListSlotsResponses, LoginData, LoginResponses, LogoutData, LogoutResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -28,6 +28,8 @@ export const createEventType = <ThrowOnError extends boolean = false>(options: O
         ...options.headers
     }
 });
+
+export const listSlots = <ThrowOnError extends boolean = false>(options: Options<ListSlotsData, ThrowOnError>): RequestResult<ListSlotsResponses, unknown, ThrowOnError> => (options.client ?? client).get<ListSlotsResponses, unknown, ThrowOnError>({ url: '/api/event-types/{eventTypeId}/slots', ...options });
 
 /**
  * Проверить доступность API.

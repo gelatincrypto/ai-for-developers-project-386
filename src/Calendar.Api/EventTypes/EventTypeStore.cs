@@ -48,6 +48,22 @@ public sealed class EventTypeStore
         return result;
     }
 
+    public EventType? Find(string id)
+    {
+        using var connection = Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT id, title, description, duration_minutes FROM event_types WHERE id = $id";
+        command.Parameters.AddWithValue("$id", id);
+        using var reader = command.ExecuteReader();
+        return reader.Read() ? new EventType
+        {
+            Id = reader.GetString(0),
+            Title = reader.GetString(1),
+            Description = reader.GetString(2),
+            DurationMinutes = reader.GetInt32(3),
+        } : null;
+    }
+
     public bool TryCreate(EventTypeInput input)
     {
         using var connection = Open();

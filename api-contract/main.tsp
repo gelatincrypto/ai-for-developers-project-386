@@ -65,4 +65,19 @@ namespace CalendarApi {
   @post
   @route("/api/event-types")
   op createEventType(@body eventType: EventTypeInput): EventType;
+
+  model AvailableSlot {
+    start: string;
+    end: string;
+  }
+
+  model AvailableSlots {
+    ownerTimeZone: string;
+    slots: AvailableSlot[];
+  }
+
+  @tag("Slots")
+  @get
+  @route("/api/event-types/{eventTypeId}/slots")
+  op listSlots(@path eventTypeId: string): AvailableSlots;
 }

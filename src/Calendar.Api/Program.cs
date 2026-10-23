@@ -7,6 +7,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.Converters.Add(new HealthStatusJsonConverter()));
 builder.Services.AddSingleton<EventTypeStore>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<SlotSchedule>();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
