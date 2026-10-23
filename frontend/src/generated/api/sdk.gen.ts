@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateBookingData, CreateBookingResponses, CreateEventTypeData, CreateEventTypeResponses, GetHealthData, GetHealthResponses, GetOwnerSessionData, GetOwnerSessionResponses, ListEventTypesData, ListEventTypesResponses, ListSlotsData, ListSlotsResponses, LoginData, LoginResponses, LogoutData, LogoutResponses } from './types.gen';
+import type { CreateBookingData, CreateBookingResponses, CreateEventTypeData, CreateEventTypeResponses, GetHealthData, GetHealthResponses, GetOwnerSessionData, GetOwnerSessionResponses, ListEventTypesData, ListEventTypesResponses, ListOwnerBookingsData, ListOwnerBookingsResponses, ListSlotsData, ListSlotsResponses, LoginData, LoginResponses, LogoutData, LogoutResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -44,6 +44,8 @@ export const listSlots = <ThrowOnError extends boolean = false>(options: Options
  * Проверить доступность API.
  */
 export const getHealth = <ThrowOnError extends boolean = false>(options?: Options<GetHealthData, ThrowOnError>): RequestResult<GetHealthResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetHealthResponses, unknown, ThrowOnError>({ url: '/api/health', ...options });
+
+export const listOwnerBookings = <ThrowOnError extends boolean = false>(options?: Options<ListOwnerBookingsData, ThrowOnError>): RequestResult<ListOwnerBookingsResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListOwnerBookingsResponses, unknown, ThrowOnError>({ url: '/api/owner/bookings', ...options });
 
 export const logout = <ThrowOnError extends boolean = false>(options?: Options<LogoutData, ThrowOnError>): RequestResult<LogoutResponses, unknown, ThrowOnError> => (options?.client ?? client).delete<LogoutResponses, unknown, ThrowOnError>({ url: '/api/owner/session', ...options });
 

@@ -51,6 +51,15 @@ export type OwnerCredentials = {
     password: string;
 };
 
+export type OwnerMeeting = {
+    id: string;
+    eventType: EventType;
+    start: string;
+    end: string;
+    guestName: string;
+    guestEmail: string;
+};
+
 export type OwnerSession = {
     username: string;
 };
@@ -136,6 +145,22 @@ export type GetHealthResponses = {
 };
 
 export type GetHealthResponse = GetHealthResponses[keyof GetHealthResponses];
+
+export type ListOwnerBookingsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/owner/bookings';
+};
+
+export type ListOwnerBookingsResponses = {
+    /**
+     * The request has succeeded.
+     */
+    200: Array<OwnerMeeting>;
+};
+
+export type ListOwnerBookingsResponse = ListOwnerBookingsResponses[keyof ListOwnerBookingsResponses];
 
 export type LogoutData = {
     body?: never;

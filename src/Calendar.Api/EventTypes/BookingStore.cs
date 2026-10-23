@@ -1,3 +1,4 @@
+using System.Globalization;
 using Calendar.Api.Generated.Models;
 using Microsoft.Data.Sqlite;
 
@@ -6,10 +7,15 @@ namespace Calendar.Api.EventTypes;
 public sealed class BookingStore
 {
     private readonly EventTypeStore eventTypes;
+    private readonly TimeProvider clock;
+    private readonly TimeZoneInfo timeZone;
 
-    public BookingStore(EventTypeStore eventTypes)
+    public BookingStore(EventTypeStore eventTypes, TimeProvider clock, IConfiguration configuration)
     {
         this.eventTypes = eventTypes;
+        this.clock = clock;
+        timeZone = TimeZoneInfo.FindSystemTimeZoneById(
+            configuration["Owner:TimeZone"] ?? throw new InvalidOperationException("Owner:TimeZone is required."));
         using var connection = eventTypes.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
@@ -44,6 +50,42 @@ public sealed class BookingStore
         }
 
         return busy;
+    }
+
+    public IReadOnlyList<OwnerMeeting> Upcoming()
+    {
+        using var connection = eventTypes.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT b.id, b.start_utc, b.end_utc, b.guest_name, b.guest_email,
+                   e.id, e.title, e.description, e.duration_minutes
+            FROM bookings b JOIN event_types e ON e.id = b.event_type_id
+            WHERE b.start_utc > $now
+            ORDER BY b.start_utc, b.id
+            """;
+        command.Parameters.AddWithValue("$now", clock.GetUtcNow().ToUnixTimeMilliseconds());
+        using var reader = command.ExecuteReader();
+        var result = new List<OwnerMeeting>();
+        while (reader.Read())
+        {
+            result.Add(new OwnerMeeting
+            {
+                Id = reader.GetString(0),
+                Start = ToOwnerTime(reader.GetInt64(1)),
+                End = ToOwnerTime(reader.GetInt64(2)),
+                GuestName = reader.GetString(3),
+                GuestEmail = reader.GetString(4),
+                EventType = new EventType
+                {
+                    Id = reader.GetString(5),
+                    Title = reader.GetString(6),
+                    Description = reader.GetString(7),
+                    DurationMinutes = reader.GetInt32(8),
+                },
+            });
+        }
+
+        return result;
     }
 
     public string? TryCreate(EventType eventType, DateTimeOffset start, DateTimeOffset end,
@@ -86,4 +128,8 @@ public sealed class BookingStore
         transaction.Commit();
         return id;
     }
+
+    private string ToOwnerTime(long milliseconds) =>
+        TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeMilliseconds(milliseconds), timeZone)
+            .ToString("O", CultureInfo.InvariantCulture);
 }
