@@ -80,4 +80,23 @@ namespace CalendarApi {
   @get
   @route("/api/event-types/{eventTypeId}/slots")
   op listSlots(@path eventTypeId: string): AvailableSlots;
+
+  model BookingRequest {
+    eventTypeId: string;
+    start: string;
+    guestName: string;
+    guestEmail: string;
+  }
+
+  model BookingConfirmation {
+    id: string;
+    eventType: EventType;
+    start: string;
+    end: string;
+  }
+
+  @tag("Bookings")
+  @post
+  @route("/api/bookings")
+  op createBooking(@body booking: BookingRequest): BookingConfirmation;
 }

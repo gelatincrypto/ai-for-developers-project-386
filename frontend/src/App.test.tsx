@@ -33,7 +33,7 @@ test('посетитель переходит с главной на стран�
   fireEvent.click(screen.getByRole('link', { name: 'Перейти к бронированию' }))
 
   expect(screen.getByRole('heading', { name: 'Бронирование' })).toBeTruthy()
-  expect(screen.getByText('Бронирование пока недоступно')).toBeTruthy()
+  expect(screen.getByText('Выберите тип события и свободное время')).toBeTruthy()
 })
 
 test('страница бронирования показывает доступность API через сгенерированный клиент', async () => {
@@ -184,4 +184,52 @@ test('пустой календарь объясняет отсутствие с
 
   fireEvent.click(await screen.findByRole('link', { name: 'Открыть календарь: Длинный звонок' }))
   expect(await screen.findByText('В ближайшие 14 дней свободных слотов нет')).toBeTruthy()
+})
+
+test('гость после конфликта выбирает другой слот и видит подтверждение', async () => {
+  vi.stubGlobal('Request', class {
+    url: string
+    method: string
+    constructor(url: string, init: RequestInit) {
+      this.url = url
+      this.method = init.method ?? 'GET'
+    }
+  })
+  let attempts = 0
+  vi.stubGlobal('fetch', vi.fn(async (request: { method: string; url: string }) => {
+    if (request.url.endsWith('/api/bookings') && request.method === 'POST') attempts++
+    const firstSlot = '{"start":"2026-10-21T09:00:00+03:00","end":"2026-10-21T09:30:00+03:00"}'
+    const secondSlot = '{"start":"2026-10-21T09:30:00+03:00","end":"2026-10-21T10:00:00+03:00"}'
+    const status = request.url.endsWith('/api/bookings') && attempts === 1 ? 409 : 200
+    const data = request.url.endsWith('/api/health') ? '{"status":"ok"}'
+      : request.url.endsWith('/api/event-types')
+        ? '[{"id":"consultation","title":"Консультация","description":"Тест","durationMinutes":30}]'
+        : request.url.endsWith('/slots')
+          ? `{"ownerTimeZone":"Europe/Moscow","slots":[${attempts ? '' : `${firstSlot},`}${secondSlot}]}`
+          : status === 409 ? '{"error":"Время занято"}'
+            : '{"id":"booking-1","eventType":{"id":"consultation","title":"Консультация","description":"Тест","durationMinutes":30},"start":"2026-10-21T09:30:00+03:00","end":"2026-10-21T10:00:00+03:00"}'
+    return { ok: status === 200, status, headers: new Headers({ 'Content-Type': 'application/json' }), text: async () => data }
+  }))
+
+  render(
+    <MantineProvider env="test">
+      <MemoryRouter initialEntries={['/booking/consultation']}>
+        <App />
+      </MemoryRouter>
+    </MantineProvider>,
+  )
+
+  fireEvent.click(await screen.findByRole('button', { name: /21 окт.*09:00/ }))
+  fireEvent.change(screen.getByRole('textbox', { name: 'Ваше имя' }), { target: { value: 'Гость' } })
+  fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), { target: { value: 'guest@example.com' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Забронировать' }))
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Выбранное время занято. Выберите другой слот.')
+  expect(screen.queryByRole('button', { name: /21 окт.*09:00/ })).toBeNull()
+
+  fireEvent.click(await screen.findByRole('button', { name: /21 окт.*09:30/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Забронировать' }))
+  expect(await screen.findByRole('heading', { name: 'Бронирование подтверждено' })).toBeTruthy()
+  expect(screen.getByText('Номер: booking-1')).toBeTruthy()
+  expect(screen.getByText('Тип события: Консультация')).toBeTruthy()
+  expect(screen.getByText(/Окончание:.*10:00/)).toBeTruthy()
 })

@@ -7,7 +7,27 @@ tags:
   - name: Owner
   - name: EventTypes
   - name: Slots
+  - name: Bookings
 paths:
+  /api/bookings:
+    post:
+      operationId: createBooking
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingConfirmation'
+      tags:
+        - Bookings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingRequest'
   /api/event-types:
     get:
       operationId: listEventTypes
@@ -136,6 +156,38 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AvailableSlot'
+    BookingConfirmation:
+      type: object
+      required:
+        - id
+        - eventType
+        - start
+        - end
+      properties:
+        id:
+          type: string
+        eventType:
+          $ref: '#/components/schemas/EventType'
+        start:
+          type: string
+        end:
+          type: string
+    BookingRequest:
+      type: object
+      required:
+        - eventTypeId
+        - start
+        - guestName
+        - guestEmail
+      properties:
+        eventTypeId:
+          type: string
+        start:
+          type: string
+        guestName:
+          type: string
+        guestEmail:
+          type: string
     EventType:
       type: object
       required:
