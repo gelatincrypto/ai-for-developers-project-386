@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "generate": "tsp compile .",
-    "generate:server": "openapi-generator-cli --openapitools api-contract/openapitools.json generate -g aspnetcore -i tsp-output/@typespec/openapi3/openapi.yaml -o ../src/Calendar.Api/Generated/OpenApi --global-property=apis,models,supportingFiles=ValidateModelStateAttribute.cs:CustomEnumConverter.cs,apiDocs=false,modelDocs=false,apiTests=false,modelTests=false --additional-properties=packageName=Calendar.Api.Generated,buildTarget=library,classModifier=abstract,operationModifier=abstract,sourceFolder=src,nullableReferenceTypes=true,useNewtonsoft=false,useSwashbuckle=false,pocoModels=true && node scripts/enable-nullable.mjs"
+    "generate:server": "openapi-generator-cli --openapitools openapitools.json generate -g aspnetcore -i tsp-output/@typespec/openapi3/openapi.yaml -o ../src/Calendar.Api/Generated/OpenApi --global-property=apis,models,supportingFiles=ValidateModelStateAttribute.cs:CustomEnumConverter.cs,apiDocs=false,modelDocs=false,apiTests=false,modelTests=false --additional-properties=packageName=Calendar.Api.Generated,buildTarget=library,classModifier=abstract,operationModifier=abstract,sourceFolder=src,nullableReferenceTypes=true,useNewtonsoft=false,useSwashbuckle=false,pocoModels=true && node scripts/enable-nullable.mjs",
+    "generate:all": "npm run generate && npm run generate:server && npm --prefix ../frontend run generate:api"
   },
   "devDependencies": {
     "@openapitools/openapi-generator-cli": "^2.42.0",

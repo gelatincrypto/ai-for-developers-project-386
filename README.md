@@ -46,26 +46,30 @@ curl http://localhost:5005/api/health
 
 Ожидаемый ответ: HTTP 200, `{"status":"ok"}`.
 
-Контракт текущего API описан в `api-contract/main.tsp`. Для генерации из корня
-репозитория нужны Node.js 22 и Java:
+Контракт текущего API описан в `api-contract/main.tsp`. После установки
+Node.js 22 и Java 21 подготовьте зависимости (один раз или после изменения lock-файлов):
 
 ```bash
 npm --prefix api-contract ci
 npm --prefix frontend ci
-npm --prefix api-contract run generate
-npm --prefix api-contract run generate:server
-npm --prefix frontend run generate:api
+```
+
+Затем вся цепочка генерации запускается **одной командой из корня репозитория**:
+
+```bash
+npm --prefix api-contract run generate:all
 ```
 
 OpenAPI сохраняется в `api-contract/tsp-output/@typespec/openapi3/openapi.yaml`,
 серверные модели и заготовки маршрутов — в `src/Calendar.Api/Generated/OpenApi/`,
 клиентский SDK — в `frontend/src/generated/api/`. Все результаты хранятся в
-репозитории. Генерируйте в указанном порядке и не редактируйте сгенерированные
-файлы вручную.
+репозитории; CI запускает ту же команду и проверяет, что они не устарели.
+Она последовательно обновляет OpenAPI, серверные файлы и клиентский SDK.
+Не редактируйте сгенерированные файлы вручную.
 
 Серверные файлы генерирует OpenAPI Generator **7.21.0** (версия закреплена в
-`api-contract/openapitools.json`), поэтому для локальной генерации необходима Java.
-Генератор создаёт абстрактный контроллер, типы и
+`api-contract/openapitools.json`), поэтому для локальной генерации необходима Java. В CI
+используется Java 21. Генератор создаёт абстрактный контроллер, типы и
 атрибут проверки модели; реальная логика находится в
 `src/Calendar.Api/Controllers/HealthController.cs`. `[ApiController]` и
 атрибуты моделей проверяют входные данные, когда они появятся в контракте.
@@ -159,8 +163,10 @@ npm --prefix frontend run build
 ## CI
 
 Workflow `.github/workflows/ci.yml` запускается на каждый push во все ветки
-и при открытии или обновлении pull request. Два независимых задания проверяют:
+и при открытии или обновлении pull request. Три независимых задания проверяют:
 
+- Контракт (Node.js 22, Java 21): установку зависимостей контракта и frontend,
+  единую генерацию OpenAPI, серверных артефактов и SDK, проверку их актуальности.
 - Backend (.NET 10): restore только из nuget.org через `NuGet.Config`,
   форматирование, Release-сборку с предупреждениями как ошибками и smoke-тест.
 - Frontend (Node.js 22): `npm ci`, Oxlint, Vitest и production-сборку;
