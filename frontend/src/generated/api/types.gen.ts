@@ -4,6 +4,20 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type EventType = {
+    id: string;
+    title: string;
+    description: string;
+    durationMinutes: number;
+};
+
+export type EventTypeInput = {
+    id: string;
+    title: string;
+    description: string;
+    durationMinutes: number;
+};
+
 export type HealthResponse = {
     status: 'ok';
 };
@@ -16,6 +30,38 @@ export type OwnerCredentials = {
 export type OwnerSession = {
     username: string;
 };
+
+export type ListEventTypesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/event-types';
+};
+
+export type ListEventTypesResponses = {
+    /**
+     * The request has succeeded.
+     */
+    200: Array<EventType>;
+};
+
+export type ListEventTypesResponse = ListEventTypesResponses[keyof ListEventTypesResponses];
+
+export type CreateEventTypeData = {
+    body: EventTypeInput;
+    path?: never;
+    query?: never;
+    url: '/api/event-types';
+};
+
+export type CreateEventTypeResponses = {
+    /**
+     * The request has succeeded.
+     */
+    200: EventType;
+};
+
+export type CreateEventTypeResponse = CreateEventTypeResponses[keyof CreateEventTypeResponses];
 
 export type GetHealthData = {
     body?: never;

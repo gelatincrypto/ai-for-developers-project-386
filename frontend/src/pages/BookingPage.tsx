@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Badge, Button, Container, Paper, Stack, Text, Title } from '@mantine/core'
-import { Link } from 'react-router'
-import { getHealth } from '../generated/api'
+import { Link, useParams } from 'react-router'
+import { getHealth, listEventTypes, type EventType } from '../generated/api'
 
 type ApiStatus = 'loading' | 'available' | 'unavailable'
 
@@ -13,6 +13,9 @@ const statusLabels: Record<ApiStatus, string> = {
 
 function BookingPage() {
   const [apiStatus, setApiStatus] = useState<ApiStatus>('loading')
+  const [eventTypes, setEventTypes] = useState<EventType[]>([])
+  const [catalogStatus, setCatalogStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const { eventTypeId } = useParams()
 
   useEffect(() => {
     const controller = new AbortController()
@@ -39,6 +42,19 @@ function BookingPage() {
     }
   }, [])
 
+  useEffect(() => {
+    let active = true
+    void listEventTypes({ baseUrl: window.location.origin }).then(({ data }) => {
+      if (active) {
+        setEventTypes(data ?? [])
+        setCatalogStatus(data ? 'ready' : 'error')
+      }
+    }).catch(() => {
+      if (active) setCatalogStatus('error')
+    })
+    return () => { active = false }
+  }, [])
+
   return (
     <Container component="main" size="sm" py="xl">
       <Stack gap="xl">
@@ -46,6 +62,21 @@ function BookingPage() {
         <Paper withBorder radius="md" p="lg">
           <Stack gap="md" align="flex-start">
             <Text>Бронирование пока недоступно</Text>
+            {eventTypeId && <Text>Выбранный тип: {eventTypes.find((item) => item.id === eventTypeId)?.title ?? eventTypeId}</Text>}
+            <Title order={2}>Типы событий</Title>
+            {catalogStatus === 'loading' && <Text>Загружаем типы событий…</Text>}
+            {catalogStatus === 'error' && <Text role="alert">Не удалось загрузить типы событий</Text>}
+            {catalogStatus === 'ready' && eventTypes.length === 0 && <Text>Типы событий пока не добавлены</Text>}
+            {eventTypes.map((item) => (
+              <Paper key={item.id} withBorder p="md">
+                <Text fw={700}>{item.title}</Text>
+                <Text>{item.description}</Text>
+                <Text>{item.durationMinutes} мин.</Text>
+                <Button component={Link} to={`/booking/${encodeURIComponent(item.id)}`} variant="light">
+                  Открыть календарь: {item.title}
+                </Button>
+              </Paper>
+            ))}
             <div role="status" aria-live="polite">
               <Badge
                 color={apiStatus === 'available' ? 'green' : apiStatus === 'unavailable' ? 'red' : 'gray'}

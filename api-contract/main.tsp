@@ -40,4 +40,29 @@ namespace CalendarApi {
   @delete
   @route("/api/owner/session")
   op logout(): void;
+
+  model EventTypeInput {
+    id: string;
+    title: string;
+    description: string;
+    @minValue(1)
+    durationMinutes: int32;
+  }
+
+  model EventType {
+    id: string;
+    title: string;
+    description: string;
+    durationMinutes: int32;
+  }
+
+  @tag("EventTypes")
+  @get
+  @route("/api/event-types")
+  op listEventTypes(): EventType[];
+
+  @tag("EventTypes")
+  @post
+  @route("/api/event-types")
+  op createEventType(@body eventType: EventTypeInput): EventType;
 }

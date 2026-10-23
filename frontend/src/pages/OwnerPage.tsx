@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Button, Container, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core'
 import { Link } from 'react-router'
-import { getOwnerSession, login, logout } from '../generated/api'
+import { createEventType, getOwnerSession, login, logout } from '../generated/api'
 
 function OwnerPage() {
   const [username, setUsername] = useState('')
@@ -9,6 +9,11 @@ function OwnerPage() {
   const [owner, setOwner] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [eventId, setEventId] = useState('')
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [durationMinutes, setDurationMinutes] = useState('30')
+  const [created, setCreated] = useState('')
 
   useEffect(() => {
     let active = true
@@ -52,6 +57,28 @@ function OwnerPage() {
     }
   }
 
+  async function createEvent(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError('')
+    setCreated('')
+    try {
+      const { data, error: createError } = await createEventType({
+        baseUrl: window.location.origin,
+        body: { id: eventId, title, description, durationMinutes: Number(durationMinutes) },
+      })
+      if (createError || !data) {
+        setError('Не удалось создать тип события: проверьте данные и уникальность идентификатора.')
+        return
+      }
+      setCreated(data.title)
+      setEventId('')
+      setTitle('')
+      setDescription('')
+    } catch {
+      setError('Не удалось создать тип события.')
+    }
+  }
+
   return (
     <Container component="main" size="sm" py="xl">
       <Stack gap="lg">
@@ -59,6 +86,17 @@ function OwnerPage() {
         {loading ? <Text>Проверяем вход…</Text> : owner ? (
           <>
             <Text>Вы вошли как {owner}</Text>
+            <form onSubmit={(event) => void createEvent(event)}>
+              <Stack gap="md">
+                <Title order={2}>Новый тип события</Title>
+                <TextInput label="Идентификатор" required value={eventId} onChange={(event) => setEventId(event.currentTarget.value)} />
+                <TextInput label="Название" required value={title} onChange={(event) => setTitle(event.currentTarget.value)} />
+                <TextInput label="Описание" required value={description} onChange={(event) => setDescription(event.currentTarget.value)} />
+                <TextInput label="Длительность в минутах" type="number" min={1} step={1} required value={durationMinutes} onChange={(event) => setDurationMinutes(event.currentTarget.value)} />
+                <Button type="submit">Создать тип события</Button>
+              </Stack>
+            </form>
+            {created && <Text role="status">Тип события «{created}» создан</Text>}
             <Button onClick={() => void signOut()}>Выйти</Button>
           </>
         ) : (
