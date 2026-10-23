@@ -4,6 +4,7 @@ info:
   version: 1.0.0
 tags:
   - name: Health
+  - name: Owner
 paths:
   /api/health:
     get:
@@ -19,6 +20,45 @@ paths:
                 $ref: '#/components/schemas/HealthResponse'
       tags:
         - Health
+  /api/owner/session:
+    post:
+      operationId: login
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerSession'
+      tags:
+        - Owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OwnerCredentials'
+    get:
+      operationId: getOwnerSession
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerSession'
+      tags:
+        - Owner
+    delete:
+      operationId: logout
+      parameters: []
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Owner
 components:
   schemas:
     HealthResponse:
@@ -30,3 +70,20 @@ components:
           type: string
           enum:
             - ok
+    OwnerCredentials:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+    OwnerSession:
+      type: object
+      required:
+        - username
+      properties:
+        username:
+          type: string

@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetHealthData, GetHealthResponses } from './types.gen';
+import type { GetHealthData, GetHealthResponses, GetOwnerSessionData, GetOwnerSessionResponses, LoginData, LoginResponses, LogoutData, LogoutResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -22,3 +22,16 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
  * Проверить доступность API.
  */
 export const getHealth = <ThrowOnError extends boolean = false>(options?: Options<GetHealthData, ThrowOnError>): RequestResult<GetHealthResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetHealthResponses, unknown, ThrowOnError>({ url: '/api/health', ...options });
+
+export const logout = <ThrowOnError extends boolean = false>(options?: Options<LogoutData, ThrowOnError>): RequestResult<LogoutResponses, unknown, ThrowOnError> => (options?.client ?? client).delete<LogoutResponses, unknown, ThrowOnError>({ url: '/api/owner/session', ...options });
+
+export const getOwnerSession = <ThrowOnError extends boolean = false>(options?: Options<GetOwnerSessionData, ThrowOnError>): RequestResult<GetOwnerSessionResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetOwnerSessionResponses, unknown, ThrowOnError>({ url: '/api/owner/session', ...options });
+
+export const login = <ThrowOnError extends boolean = false>(options: Options<LoginData, ThrowOnError>): RequestResult<LoginResponses, unknown, ThrowOnError> => (options.client ?? client).post<LoginResponses, unknown, ThrowOnError>({
+    url: '/api/owner/session',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});

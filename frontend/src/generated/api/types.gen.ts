@@ -8,6 +8,15 @@ export type HealthResponse = {
     status: 'ok';
 };
 
+export type OwnerCredentials = {
+    username: string;
+    password: string;
+};
+
+export type OwnerSession = {
+    username: string;
+};
+
 export type GetHealthData = {
     body?: never;
     path?: never;
@@ -23,3 +32,51 @@ export type GetHealthResponses = {
 };
 
 export type GetHealthResponse = GetHealthResponses[keyof GetHealthResponses];
+
+export type LogoutData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/owner/session';
+};
+
+export type LogoutResponses = {
+    /**
+     * There is no content to send for this request, but the headers may be useful.
+     */
+    204: void;
+};
+
+export type LogoutResponse = LogoutResponses[keyof LogoutResponses];
+
+export type GetOwnerSessionData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/owner/session';
+};
+
+export type GetOwnerSessionResponses = {
+    /**
+     * The request has succeeded.
+     */
+    200: OwnerSession;
+};
+
+export type GetOwnerSessionResponse = GetOwnerSessionResponses[keyof GetOwnerSessionResponses];
+
+export type LoginData = {
+    body: OwnerCredentials;
+    path?: never;
+    query?: never;
+    url: '/api/owner/session';
+};
+
+export type LoginResponses = {
+    /**
+     * The request has succeeded.
+     */
+    200: OwnerSession;
+};
+
+export type LoginResponse = LoginResponses[keyof LoginResponses];

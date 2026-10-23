@@ -10,7 +10,10 @@ async function enableNullable(directory) {
     } else if (entry.name.endsWith('.cs')) {
       const source = await readFile(file, 'utf8')
       const normalized = source.replace(/[ \t]+(?=\r?\n|$)/g, '')
-      await writeFile(file, normalized.startsWith('#nullable enable') ? normalized : `#nullable enable\n${normalized}`)
+      const header = directory.pathname.endsWith('/Models/')
+        ? '#nullable enable\n#pragma warning disable CS8618\n'
+        : '#nullable enable\n'
+      await writeFile(file, normalized.replace(/^#nullable enable\n(?:#pragma warning disable CS8618\n)?/, '').replace(/^/, header))
     }
   }
 }

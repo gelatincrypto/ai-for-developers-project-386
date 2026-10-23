@@ -19,6 +19,7 @@ function LandingPage() {
           <Button component={Link} to="/booking" size="lg">
             Перейти к бронированию
           </Button>
+          <Button component={Link} to="/owner" variant="subtle">Вход для владельца</Button>
         </Stack>
         <Stack gap="md">
           <Title order={2}>Как это будет работать</Title>
