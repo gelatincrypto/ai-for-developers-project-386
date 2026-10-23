@@ -14,6 +14,20 @@ export type AvailableSlots = {
     slots: Array<AvailableSlot>;
 };
 
+export type BookingConfirmation = {
+    id: string;
+    eventType: EventType;
+    start: string;
+    end: string;
+};
+
+export type BookingRequest = {
+    eventTypeId: string;
+    start: string;
+    guestName: string;
+    guestEmail: string;
+};
+
 export type EventType = {
     id: string;
     title: string;
@@ -40,6 +54,22 @@ export type OwnerCredentials = {
 export type OwnerSession = {
     username: string;
 };
+
+export type CreateBookingData = {
+    body: BookingRequest;
+    path?: never;
+    query?: never;
+    url: '/api/bookings';
+};
+
+export type CreateBookingResponses = {
+    /**
+     * The request has succeeded.
+     */
+    200: BookingConfirmation;
+};
+
+export type CreateBookingResponse = CreateBookingResponses[keyof CreateBookingResponses];
 
 export type ListEventTypesData = {
     body?: never;

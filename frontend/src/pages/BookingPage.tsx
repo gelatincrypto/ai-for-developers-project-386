@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
-import { Badge, Button, Container, Paper, Stack, Text, Title } from '@mantine/core'
+import { useEffect, useState, type FormEvent } from 'react'
+import { Badge, Button, Container, Paper, Stack, Text, TextInput, Title } from '@mantine/core'
 import { Link, useParams } from 'react-router'
-import { getHealth, listEventTypes, listSlots, type AvailableSlots, type EventType } from '../generated/api'
+import { createBooking, getHealth, listEventTypes, listSlots, type AvailableSlots, type BookingConfirmation, type EventType } from '../generated/api'
 
 type ApiStatus = 'loading' | 'available' | 'unavailable'
 
@@ -17,6 +17,11 @@ function BookingPage() {
   const [catalogStatus, setCatalogStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [calendar, setCalendar] = useState<AvailableSlots | null>(null)
   const [calendarStatus, setCalendarStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [selectedStart, setSelectedStart] = useState('')
+  const [guestName, setGuestName] = useState('')
+  const [guestEmail, setGuestEmail] = useState('')
+  const [confirmation, setConfirmation] = useState<BookingConfirmation | null>(null)
+  const [bookingError, setBookingError] = useState('')
   const { eventTypeId } = useParams()
 
   useEffect(() => {
@@ -58,6 +63,40 @@ function BookingPage() {
     return () => { active = false }
   }, [eventTypeId])
 
+  async function book(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!eventTypeId || !selectedStart) return
+    setBookingError('')
+    try {
+      const { data, response } = await createBooking({
+        baseUrl: window.location.origin,
+        body: { eventTypeId, start: selectedStart, guestName, guestEmail },
+      })
+      if (data) {
+        setConfirmation(data)
+        return
+      }
+      if (response?.status === 409) {
+        setBookingError('Выбранное время занято. Выберите другой слот.')
+        setSelectedStart('')
+        const refreshed = await listSlots({ baseUrl: window.location.origin, path: { eventTypeId } })
+        setCalendar(refreshed.data ?? null)
+      } else {
+        setBookingError('Не удалось создать бронирование. Проверьте данные и попробуйте ещё раз.')
+      }
+    } catch {
+      setBookingError('Не удалось создать бронирование. Попробуйте ещё раз.')
+    }
+  }
+
+  function showTime(value: string, ownerTimeZone: string) {
+    return new Intl.DateTimeFormat('ru-RU', {
+      timeZone: ownerTimeZone,
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date(value))
+  }
+
   useEffect(() => {
     let active = true
     void listEventTypes({ baseUrl: window.location.origin }).then(({ data }) => {
@@ -77,24 +116,40 @@ function BookingPage() {
         <Title order={1}>Бронирование</Title>
         <Paper withBorder radius="md" p="lg">
           <Stack gap="md" align="flex-start">
-            <Text>Бронирование пока недоступно</Text>
+            <Text>Выберите тип события и свободное время</Text>
             {eventTypeId && <Text>Выбранный тип: {eventTypes.find((item) => item.id === eventTypeId)?.title ?? eventTypeId}</Text>}
             {eventTypeId && calendarStatus === 'loading' && <Text>Загружаем календарь…</Text>}
             {eventTypeId && calendarStatus === 'error' && <Text role="alert">Не удалось загрузить календарь</Text>}
             {eventTypeId && calendar && calendarStatus === 'ready' && (
               <Stack>
                 <Text>Часовой пояс владельца: {calendar.ownerTimeZone}</Text>
-                {calendar.slots.length === 0 ? <Text>В ближайшие 14 дней свободных слотов нет</Text> : (
+                {confirmation ? (
+                  <Paper withBorder p="md" role="status">
+                    <Title order={2}>Бронирование подтверждено</Title>
+                    <Text>Номер: {confirmation.id}</Text>
+                    <Text>Тип события: {confirmation.eventType.title}</Text>
+                    <Text>Начало: {showTime(confirmation.start, calendar.ownerTimeZone)}</Text>
+                    <Text>Окончание: {showTime(confirmation.end, calendar.ownerTimeZone)}</Text>
+                  </Paper>
+                ) : calendar.slots.length === 0 ? <Text>В ближайшие 14 дней свободных слотов нет</Text> : (
                   calendar.slots.map((slot) => (
-                    <Text key={slot.start}>
-                      {new Intl.DateTimeFormat('ru-RU', {
-                        timeZone: calendar.ownerTimeZone,
-                        dateStyle: 'medium',
-                        timeStyle: 'short',
-                      }).format(new Date(slot.start))}
-                    </Text>
+                    <Button key={slot.start} variant={selectedStart === slot.start ? 'filled' : 'light'}
+                      onClick={() => setSelectedStart(slot.start)}>
+                      {showTime(slot.start, calendar.ownerTimeZone)}
+                    </Button>
                   ))
                 )}
+                {selectedStart && !confirmation && (
+                  <form onSubmit={(event) => void book(event)}>
+                    <Stack gap="md">
+                      <Text>Выбрано: {showTime(selectedStart, calendar.ownerTimeZone)}</Text>
+                      <TextInput label="Ваше имя" required value={guestName} onChange={(event) => setGuestName(event.currentTarget.value)} />
+                      <TextInput label="Email" type="email" required value={guestEmail} onChange={(event) => setGuestEmail(event.currentTarget.value)} />
+                      <Button type="submit">Забронировать</Button>
+                    </Stack>
+                  </form>
+                )}
+                {bookingError && <Text role="alert" c="red">{bookingError}</Text>}
               </Stack>
             )}
             <Title order={2}>Типы событий</Title>

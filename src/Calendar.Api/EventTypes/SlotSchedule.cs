@@ -3,12 +3,12 @@ using Calendar.Api.Generated.Models;
 
 namespace Calendar.Api.EventTypes;
 
-public sealed class SlotSchedule(IConfiguration configuration, TimeProvider clock)
+public sealed class SlotSchedule(IConfiguration configuration, TimeProvider clock, BookingStore bookings)
 {
     private readonly TimeZoneInfo timeZone = TimeZoneInfo.FindSystemTimeZoneById(
         configuration["Owner:TimeZone"] ?? throw new InvalidOperationException("Owner:TimeZone is required."));
 
-    public AvailableSlots GetSlots(EventType eventType)
+    public AvailableSlots GetSlots(EventType eventType, bool excludeBusy = true)
     {
         var now = clock.GetUtcNow();
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, timeZone).DateTime);
@@ -44,6 +44,17 @@ public sealed class SlotSchedule(IConfiguration configuration, TimeProvider cloc
                     End = end.ToString("O", CultureInfo.InvariantCulture),
                 });
             }
+        }
+
+        if (excludeBusy && slots.Count > 0)
+        {
+            var busy = bookings.BusyBetween(now, now.AddDays(15));
+            slots.RemoveAll(slot =>
+            {
+                var start = DateTimeOffset.Parse(slot.Start, CultureInfo.InvariantCulture).ToUnixTimeMilliseconds();
+                var end = DateTimeOffset.Parse(slot.End, CultureInfo.InvariantCulture).ToUnixTimeMilliseconds();
+                return busy.Any(booking => booking.Start < end && booking.End > start);
+            });
         }
 
         return new AvailableSlots { OwnerTimeZone = timeZone.Id, Slots = slots };

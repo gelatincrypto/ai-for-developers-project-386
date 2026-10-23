@@ -79,7 +79,7 @@ public sealed class EventTypeStore
         return command.ExecuteNonQuery() == 1;
     }
 
-    private SqliteConnection Open()
+    internal SqliteConnection Open()
     {
         var connection = new SqliteConnection(connectionString);
         connection.Open();
