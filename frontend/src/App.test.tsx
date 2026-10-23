@@ -43,11 +43,11 @@ test('страница бронирования показывает досту�
       this.url = url
     }
   })
-  const fetchMock = vi.fn(async (_request: { url: string }) => ({
+  const fetchMock = vi.fn(async (request: { url: string }) => ({
     ok: true,
     status: 200,
     headers: new Headers({ 'Content-Type': 'application/json' }),
-    text: async () => '{"status":"ok"}',
+    text: async () => request.url.endsWith('/api/health') ? '{"status":"ok"}' : '[]',
   }))
   vi.stubGlobal('fetch', fetchMock)
 
@@ -102,4 +102,54 @@ test('владелец входит в закрытую часть и выход
   expect(await screen.findByText('Вы вошли как test-owner')).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: 'Выйти' }))
   expect(await screen.findByRole('heading', { name: 'Вход владельца' })).toBeTruthy()
+})
+
+test('созданный владельцем тип виден гостю в каталоге', async () => {
+  vi.stubGlobal('Request', class {
+    url: string
+    method: string
+    constructor(url: string, init: RequestInit) {
+      this.url = url
+      this.method = init.method ?? 'GET'
+    }
+  })
+  let created = false
+  vi.stubGlobal('fetch', vi.fn(async (request: { method: string; url: string }) => {
+    if (request.url.endsWith('/api/event-types') && request.method === 'POST') created = true
+    const data = request.url.endsWith('/api/owner/session')
+      ? '{"username":"test-owner"}'
+      : request.url.endsWith('/api/health') ? '{"status":"ok"}'
+      : created ? '[{"id":"consultation","title":"Консультация","description":"Знакомство","durationMinutes":45}]' : '[]'
+    return {
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      text: async () => request.method === 'POST' && request.url.endsWith('/api/event-types')
+        ? '{"id":"consultation","title":"Консультация","description":"Знакомство","durationMinutes":45}' : data,
+    }
+  }))
+
+  render(
+    <MantineProvider env="test">
+      <MemoryRouter initialEntries={['/owner']}>
+        <App />
+      </MemoryRouter>
+    </MantineProvider>,
+  )
+
+  expect(await screen.findByRole('heading', { name: 'Новый тип события' })).toBeTruthy()
+  fireEvent.change(screen.getByRole('textbox', { name: 'Идентификатор' }), { target: { value: 'consultation' } })
+  fireEvent.change(screen.getByRole('textbox', { name: 'Название' }), { target: { value: 'Консультация' } })
+  fireEvent.change(screen.getByRole('textbox', { name: 'Описание' }), { target: { value: 'Знакомство' } })
+  fireEvent.change(screen.getByRole('spinbutton', { name: 'Длительность в минутах' }), { target: { value: '45' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Создать тип события' }))
+  expect(await screen.findByText('Тип события «Консультация» создан')).toBeTruthy()
+
+  fireEvent.click(screen.getByRole('link', { name: 'На главную' }))
+  fireEvent.click(screen.getByRole('link', { name: 'Перейти к бронированию' }))
+  expect(await screen.findByText('Консультация')).toBeTruthy()
+  expect(screen.getByText('Знакомство')).toBeTruthy()
+  expect(screen.getByText('45 мин.')).toBeTruthy()
+  fireEvent.click(screen.getByRole('link', { name: 'Открыть календарь: Консультация' }))
+  expect(await screen.findByText('Выбранный тип: Консультация')).toBeTruthy()
 })

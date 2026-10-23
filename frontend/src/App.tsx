@@ -8,6 +8,7 @@ function App() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/booking" element={<BookingPage />} />
+      <Route path="/booking/:eventTypeId" element={<BookingPage />} />
       <Route path="/owner" element={<OwnerPage />} />
     </Routes>
   )

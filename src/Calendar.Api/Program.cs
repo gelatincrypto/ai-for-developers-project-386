@@ -1,10 +1,12 @@
 using Calendar.Api.Controllers;
+using Calendar.Api.EventTypes;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.Converters.Add(new HealthStatusJsonConverter()));
+builder.Services.AddSingleton<EventTypeStore>();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
