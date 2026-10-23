@@ -11,7 +11,7 @@ const statusLabels: Record<ApiStatus, string> = {
   unavailable: 'Сервер недоступен',
 }
 
-function BookingPage() {
+function BookingContent({ eventTypeId }: { eventTypeId?: string }) {
   const [apiStatus, setApiStatus] = useState<ApiStatus>('loading')
   const [eventTypes, setEventTypes] = useState<EventType[]>([])
   const [catalogStatus, setCatalogStatus] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -22,7 +22,6 @@ function BookingPage() {
   const [guestEmail, setGuestEmail] = useState('')
   const [confirmation, setConfirmation] = useState<BookingConfirmation | null>(null)
   const [bookingError, setBookingError] = useState('')
-  const { eventTypeId } = useParams()
 
   useEffect(() => {
     const controller = new AbortController()
@@ -180,6 +179,11 @@ function BookingPage() {
       </Stack>
     </Container>
   )
+}
+
+function BookingPage() {
+  const { eventTypeId } = useParams()
+  return <BookingContent key={eventTypeId} eventTypeId={eventTypeId} />
 }
 
 export default BookingPage
