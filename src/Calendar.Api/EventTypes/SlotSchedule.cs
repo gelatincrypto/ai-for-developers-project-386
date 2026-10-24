@@ -13,6 +13,7 @@ public sealed class SlotSchedule(IConfiguration configuration, TimeProvider cloc
         var now = clock.GetUtcNow();
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, timeZone).DateTime);
         var slots = new List<AvailableSlot>();
+        var busySlots = new List<AvailableSlot>();
 
         for (var day = 0; day < 14; day++)
         {
@@ -48,7 +49,13 @@ public sealed class SlotSchedule(IConfiguration configuration, TimeProvider cloc
             {
                 var start = DateTimeOffset.Parse(slot.Start, CultureInfo.InvariantCulture).ToUnixTimeMilliseconds();
                 var end = DateTimeOffset.Parse(slot.End, CultureInfo.InvariantCulture).ToUnixTimeMilliseconds();
-                return busy.Any(booking => booking.Start < end && booking.End > start);
+                if (!busy.Any(booking => booking.Start < end && booking.End > start))
+                {
+                    return false;
+                }
+
+                busySlots.Add(slot);
+                return true;
             });
         }
 
@@ -57,6 +64,7 @@ public sealed class SlotSchedule(IConfiguration configuration, TimeProvider cloc
             OwnerTimeZone = timeZone.Id,
             WindowStartDate = today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             Slots = slots,
+            BusySlots = busySlots,
         };
     }
 }

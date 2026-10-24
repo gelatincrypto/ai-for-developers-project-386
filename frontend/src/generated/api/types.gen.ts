@@ -13,6 +13,7 @@ export type AvailableSlots = {
     ownerTimeZone: string;
     windowStartDate: string;
     slots: Array<AvailableSlot>;
+    busySlots: Array<AvailableSlot>;
 };
 
 export type BookingConfirmation = {

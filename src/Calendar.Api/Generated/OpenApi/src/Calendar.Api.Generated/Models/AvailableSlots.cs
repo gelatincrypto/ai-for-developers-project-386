@@ -49,5 +49,12 @@ namespace Calendar.Api.Generated.Models
         [DataMember(Name="slots", EmitDefaultValue=false)]
         public List<AvailableSlot> Slots { get; set; }
 
+        /// <summary>
+        /// Gets or Sets BusySlots
+        /// </summary>
+        [Required]
+        [DataMember(Name="busySlots", EmitDefaultValue=false)]
+        public List<AvailableSlot> BusySlots { get; set; }
+
     }
 }
