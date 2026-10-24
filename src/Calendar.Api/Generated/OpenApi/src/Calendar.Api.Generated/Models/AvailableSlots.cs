@@ -36,6 +36,13 @@ namespace Calendar.Api.Generated.Models
         public string OwnerTimeZone { get; set; }
 
         /// <summary>
+        /// Gets or Sets WindowStartDate
+        /// </summary>
+        [Required]
+        [DataMember(Name="windowStartDate", EmitDefaultValue=false)]
+        public string WindowStartDate { get; set; }
+
+        /// <summary>
         /// Gets or Sets Slots
         /// </summary>
         [Required]

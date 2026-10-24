@@ -72,6 +72,7 @@ namespace CalendarApi {
 
   model AvailableSlots {
     ownerTimeZone: string;
+    windowStartDate: string;
     slots: AvailableSlot[];
   }
 

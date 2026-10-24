@@ -132,7 +132,7 @@ test('созданный владельцем тип виден гостю в к
       ? '{"username":"test-owner"}'
       : request.url.endsWith('/api/health') ? '{"status":"ok"}'
       : request.url.endsWith('/api/event-types/consultation/slots')
-        ? '{"ownerTimeZone":"Europe/Moscow","slots":[{"start":"2026-10-26T09:00:00+03:00","end":"2026-10-26T09:45:00+03:00"}]}'
+        ? '{"ownerTimeZone":"Europe/Moscow","windowStartDate":"2026-10-24","slots":[{"start":"2026-10-26T09:00:00+03:00","end":"2026-10-26T09:45:00+03:00"}]}'
       : created ? '[{"id":"consultation","title":"Консультация","description":"Знакомство","durationMinutes":45}]' : '[]'
     return {
       ok: true,
@@ -167,6 +167,7 @@ test('созданный владельцем тип виден гостю в к
   fireEvent.click(screen.getByRole('link', { name: 'Открыть календарь: Консультация' }))
   expect(await screen.findByText('Выбранный тип: Консультация')).toBeTruthy()
   expect(await screen.findByText('Часовой пояс владельца: Europe/Moscow')).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: /26 окт/i }))
   expect(await screen.findByRole('button', { name: /26 окт.*09:00/ })).toBeTruthy()
 })
 
@@ -182,7 +183,7 @@ test('пустой календарь объясняет отсутствие с
     status: 200,
     headers: new Headers({ 'Content-Type': 'application/json' }),
     text: async () => request.url.endsWith('/api/health') ? '{"status":"ok"}'
-      : request.url.endsWith('/slots') ? '{"ownerTimeZone":"Europe/Moscow","slots":[]}'
+      : request.url.endsWith('/slots') ? '{"ownerTimeZone":"Europe/Moscow","windowStartDate":"2026-10-24","slots":[]}'
       : '[{"id":"long","title":"Длинный звонок","description":"Тест","durationMinutes":541}]',
   })))
 
@@ -208,7 +209,7 @@ test('гость выбирает день и слот без прокрутки
     status: 200,
     headers: new Headers({ 'Content-Type': 'application/json' }),
     text: async () => request.url.endsWith('/slots')
-      ? JSON.stringify({ ownerTimeZone: 'Europe/Moscow', slots: [
+      ? JSON.stringify({ ownerTimeZone: 'Europe/Moscow', windowStartDate: '2026-10-24', slots: [
         { start: '2026-10-26T00:30:00+03:00', end: '2026-10-26T01:00:00+03:00' },
         { start: '2026-10-26T09:00:00+03:00', end: '2026-10-26T09:30:00+03:00' },
         { start: '2026-10-27T09:00:00+03:00', end: '2026-10-27T09:30:00+03:00' },
@@ -224,9 +225,16 @@ test('гость выбирает день и слот без прокрутки
   )
 
   const days = await screen.findByRole('group', { name: 'День бронирования' })
+  expect(within(days).getAllByRole('button')).toHaveLength(14)
+  expect(within(days).getByRole('button', { name: /24 окт/i }).hasAttribute('disabled')).toBe(true)
+  expect(within(days).getByRole('button', { name: /6 ноя/i })).toBeTruthy()
   const firstDay = within(days).getByRole('button', { name: /26 окт/i })
   const secondDay = within(days).getByRole('button', { name: /27 окт/i })
-  expect(firstDay.getAttribute('aria-pressed')).toBe('true')
+  expect(firstDay.getAttribute('aria-pressed')).toBe('false')
+  expect(screen.getByText('Шаг 1. Выберите день')).toBeTruthy()
+  expect(screen.queryByRole('group', { name: 'Свободное время' })).toBeNull()
+  fireEvent.click(firstDay)
+  expect(screen.getByText('Шаг 2. Выберите время')).toBeTruthy()
   expect(screen.getByRole('button', { name: /26 окт.*00:30/i })).toBeTruthy()
   expect(screen.queryByRole('button', { name: /27 окт.*09:00/i })).toBeNull()
 
@@ -252,16 +260,16 @@ test('гость после конфликта выбирает другой с�
   let attempts = 0
   vi.stubGlobal('fetch', vi.fn(async (request: { method: string; url: string }) => {
     if (request.url.endsWith('/api/bookings') && request.method === 'POST') attempts++
-    const firstSlot = '{"start":"2026-10-21T09:00:00+03:00","end":"2026-10-21T09:30:00+03:00"}'
-    const secondSlot = '{"start":"2026-10-21T09:30:00+03:00","end":"2026-10-21T10:00:00+03:00"}'
+    const firstSlot = '{"start":"2026-10-26T09:00:00+03:00","end":"2026-10-26T09:30:00+03:00"}'
+    const secondSlot = '{"start":"2026-10-26T09:30:00+03:00","end":"2026-10-26T10:00:00+03:00"}'
     const status = request.url.endsWith('/api/bookings') && attempts === 1 ? 409 : 200
     const data = request.url.endsWith('/api/health') ? '{"status":"ok"}'
       : request.url.endsWith('/api/event-types')
         ? '[{"id":"consultation","title":"Консультация","description":"Тест","durationMinutes":30}]'
         : request.url.endsWith('/slots')
-          ? `{"ownerTimeZone":"Europe/Moscow","slots":[${attempts ? '' : `${firstSlot},`}${secondSlot}]}`
+          ? `{"ownerTimeZone":"Europe/Moscow","windowStartDate":"2026-10-24","slots":[${attempts ? '' : `${firstSlot},`}${secondSlot}]}`
           : status === 409 ? '{"error":"Время занято"}'
-            : '{"id":"booking-1","eventType":{"id":"consultation","title":"Консультация","description":"Тест","durationMinutes":30},"start":"2026-10-21T09:30:00+03:00","end":"2026-10-21T10:00:00+03:00"}'
+            : '{"id":"booking-1","eventType":{"id":"consultation","title":"Консультация","description":"Тест","durationMinutes":30},"start":"2026-10-26T09:30:00+03:00","end":"2026-10-26T10:00:00+03:00"}'
     return { ok: status === 200, status, headers: new Headers({ 'Content-Type': 'application/json' }), text: async () => data }
   }))
 
@@ -273,14 +281,15 @@ test('гость после конфликта выбирает другой с�
     </MantineProvider>,
   )
 
-  fireEvent.click(await screen.findByRole('button', { name: /21 окт.*09:00/ }))
+  fireEvent.click(await screen.findByRole('button', { name: /26 окт/i }))
+  fireEvent.click(screen.getByRole('button', { name: /26 окт.*09:00/ }))
   fireEvent.change(screen.getByRole('textbox', { name: 'Ваше имя' }), { target: { value: 'Гость' } })
   fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), { target: { value: 'guest@example.com' } })
   fireEvent.click(screen.getByRole('button', { name: 'Забронировать' }))
   expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Выбранное время занято. Выберите другой слот.')
-  expect(screen.queryByRole('button', { name: /21 окт.*09:00/ })).toBeNull()
+  expect(screen.queryByRole('button', { name: /26 окт.*09:00/ })).toBeNull()
 
-  fireEvent.click(await screen.findByRole('button', { name: /21 окт.*09:30/ }))
+  fireEvent.click(await screen.findByRole('button', { name: /26 окт.*09:30/ }))
   fireEvent.click(screen.getByRole('button', { name: 'Забронировать' }))
   expect(await screen.findByRole('heading', { name: 'Бронирование подтверждено' })).toBeTruthy()
   expect(screen.queryByText('Выберите тип события и свободное время')).toBeNull()
@@ -307,9 +316,9 @@ test('после подтверждения переход к другому т�
     const data = request.url.endsWith('/api/health') ? '{"status":"ok"}'
       : request.url.endsWith('/api/event-types') ? JSON.stringify(eventTypes)
         : request.url.endsWith('/api/event-types/first/slots')
-          ? '{"ownerTimeZone":"Europe/Moscow","slots":[{"start":"2026-10-26T09:00:00+03:00","end":"2026-10-26T09:30:00+03:00"}]}'
+          ? '{"ownerTimeZone":"Europe/Moscow","windowStartDate":"2026-10-24","slots":[{"start":"2026-10-26T09:00:00+03:00","end":"2026-10-26T09:30:00+03:00"}]}'
           : request.url.endsWith('/api/event-types/second/slots')
-            ? '{"ownerTimeZone":"Europe/Moscow","slots":[{"start":"2026-10-26T10:00:00+03:00","end":"2026-10-26T10:30:00+03:00"}]}'
+            ? '{"ownerTimeZone":"Europe/Moscow","windowStartDate":"2026-10-24","slots":[{"start":"2026-10-26T10:00:00+03:00","end":"2026-10-26T10:30:00+03:00"}]}'
             : JSON.stringify({ id: 'booking-1', eventType: eventTypes[0], start: '2026-10-26T09:00:00+03:00', end: '2026-10-26T09:30:00+03:00' })
     return { ok: true, status: 200, headers: new Headers({ 'Content-Type': 'application/json' }), text: async () => data }
   }))
@@ -322,13 +331,15 @@ test('после подтверждения переход к другому т�
     </MantineProvider>,
   )
 
-  fireEvent.click(await screen.findByRole('button', { name: /26 окт.*09:00/ }))
+  fireEvent.click(await screen.findByRole('button', { name: /26 окт/i }))
+  fireEvent.click(screen.getByRole('button', { name: /26 окт.*09:00/ }))
   fireEvent.change(screen.getByRole('textbox', { name: 'Ваше имя' }), { target: { value: 'Гость' } })
   fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), { target: { value: 'guest@example.com' } })
   fireEvent.click(screen.getByRole('button', { name: 'Забронировать' }))
   expect(await screen.findByText('Тип события: Первый тип')).toBeTruthy()
 
   fireEvent.click(screen.getByRole('link', { name: 'Открыть календарь: Второй тип' }))
+  fireEvent.click(await screen.findByRole('button', { name: /26 окт/i }))
   expect(await screen.findByRole('button', { name: /26 окт.*10:00/ })).toBeTruthy()
   expect(screen.queryByRole('heading', { name: 'Бронирование подтверждено' })).toBeNull()
   expect(screen.queryByRole('button', { name: /26 окт.*09:00/ })).toBeNull()
