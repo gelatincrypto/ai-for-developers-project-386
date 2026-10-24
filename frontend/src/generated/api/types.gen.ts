@@ -36,7 +36,6 @@ export type EventType = {
 };
 
 export type EventTypeInput = {
-    id: string;
     title: string;
     description: string;
     durationMinutes: number;

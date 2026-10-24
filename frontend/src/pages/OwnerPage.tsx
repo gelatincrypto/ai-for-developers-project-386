@@ -9,7 +9,6 @@ function OwnerPage() {
   const [owner, setOwner] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [eventId, setEventId] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [durationMinutes, setDurationMinutes] = useState('30')
@@ -81,14 +80,13 @@ function OwnerPage() {
     try {
       const { data, error: createError } = await createEventType({
         baseUrl: window.location.origin,
-        body: { id: eventId, title, description, durationMinutes: Number(durationMinutes) },
+        body: { title, description, durationMinutes: Number(durationMinutes) },
       })
       if (createError || !data) {
-        setError('Не удалось создать тип события: проверьте данные и уникальность идентификатора.')
+        setError('Не удалось создать тип события: проверьте данные.')
         return
       }
       setCreated(data.title)
-      setEventId('')
       setTitle('')
       setDescription('')
     } catch {
@@ -106,7 +104,6 @@ function OwnerPage() {
             <form onSubmit={(event) => void createEvent(event)}>
               <Stack gap="md">
                 <Title order={2}>Новый тип события</Title>
-                <TextInput label="Идентификатор" required value={eventId} onChange={(event) => setEventId(event.currentTarget.value)} />
                 <TextInput label="Название" required value={title} onChange={(event) => setTitle(event.currentTarget.value)} />
                 <TextInput label="Описание" required value={description} onChange={(event) => setDescription(event.currentTarget.value)} />
                 <TextInput label="Длительность в минутах" type="number" min={1} step={1} required value={durationMinutes} onChange={(event) => setDurationMinutes(event.currentTarget.value)} />

@@ -29,13 +29,6 @@ namespace Calendar.Api.Generated.Models
     public class EventTypeInput
     {
         /// <summary>
-        /// Gets or Sets Id
-        /// </summary>
-        [Required]
-        [DataMember(Name="id", EmitDefaultValue=false)]
-        public string Id { get; set; }
-
-        /// <summary>
         /// Gets or Sets Title
         /// </summary>
         [Required]

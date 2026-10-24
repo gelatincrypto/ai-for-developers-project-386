@@ -32,11 +32,14 @@ public class SlotTests
             using var owner = factory.CreateClient();
             Assert.Equal(HttpStatusCode.OK, (await owner.PostAsJsonAsync("/api/owner/session",
                 new { username = "test-owner", password = "test-password" })).StatusCode);
-            Assert.Equal(HttpStatusCode.OK, (await owner.PostAsJsonAsync("/api/event-types",
-                new { id = "call", title = "Звонок", description = "Тест", durationMinutes = 30 })).StatusCode);
+            using var created = await owner.PostAsJsonAsync("/api/event-types",
+                new { title = "Звонок", description = "Тест", durationMinutes = 30 });
+            Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+            var eventType = await created.Content.ReadFromJsonAsync<EventType>();
+            Assert.NotNull(eventType);
 
             using var guest = factory.CreateClient();
-            var calendar = await guest.GetFromJsonAsync<Calendar>("/api/event-types/call/slots");
+            var calendar = await guest.GetFromJsonAsync<Calendar>($"/api/event-types/{eventType.Id}/slots");
             Assert.NotNull(calendar);
             Assert.Equal(new DateTimeOffset(2026, 10, 20, 9, 0, 0, TimeSpan.FromHours(3)), calendar.Slots[0].Start);
             Assert.Equal(new DateTimeOffset(2026, 11, 2, 17, 30, 0, TimeSpan.FromHours(3)), calendar.Slots[^1].Start);
@@ -71,12 +74,18 @@ public class SlotTests
             Assert.Equal(HttpStatusCode.NotFound, (await guest.GetAsync("/api/event-types/missing/slots")).StatusCode);
             Assert.Equal(HttpStatusCode.OK, (await owner.PostAsJsonAsync("/api/owner/session",
                 new { username = "test-owner", password = "test-password" })).StatusCode);
-            Assert.Equal(HttpStatusCode.OK, (await owner.PostAsJsonAsync("/api/event-types",
-                new { id = "call", title = "Звонок", description = "Тест", durationMinutes = 75 })).StatusCode);
-            Assert.Equal(HttpStatusCode.OK, (await owner.PostAsJsonAsync("/api/event-types",
-                new { id = "long", title = "Длинный", description = "Тест", durationMinutes = 541 })).StatusCode);
+            using var created = await owner.PostAsJsonAsync("/api/event-types",
+                new { title = "Звонок", description = "Тест", durationMinutes = 75 });
+            Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+            var eventType = await created.Content.ReadFromJsonAsync<EventType>();
+            Assert.NotNull(eventType);
+            using var longCreated = await owner.PostAsJsonAsync("/api/event-types",
+                new { title = "Длинный", description = "Тест", durationMinutes = 541 });
+            Assert.Equal(HttpStatusCode.OK, longCreated.StatusCode);
+            var longType = await longCreated.Content.ReadFromJsonAsync<EventType>();
+            Assert.NotNull(longType);
 
-            var calendar = await guest.GetFromJsonAsync<Calendar>("/api/event-types/call/slots");
+            var calendar = await guest.GetFromJsonAsync<Calendar>($"/api/event-types/{eventType.Id}/slots");
             Assert.NotNull(calendar);
             Assert.Equal("Europe/Moscow", calendar.OwnerTimeZone);
             Assert.NotEmpty(calendar.Slots);
@@ -94,7 +103,7 @@ public class SlotTests
                 Assert.InRange(DateOnly.FromDateTime(slot.Start.DateTime), new DateOnly(2026, 10, 20), new DateOnly(2026, 11, 2));
             });
 
-            var empty = await guest.GetFromJsonAsync<Calendar>("/api/event-types/long/slots");
+            var empty = await guest.GetFromJsonAsync<Calendar>($"/api/event-types/{longType.Id}/slots");
             Assert.NotNull(empty);
             Assert.Empty(empty.Slots);
         }
@@ -108,6 +117,8 @@ public class SlotTests
     {
         public override DateTimeOffset GetUtcNow() => now;
     }
+
+    private sealed record EventType(string Id);
 
     private sealed record Calendar(string OwnerTimeZone, Slot[] Slots);
 
