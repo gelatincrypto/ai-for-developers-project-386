@@ -57,6 +57,11 @@ public sealed class SlotSchedule(IConfiguration configuration, TimeProvider cloc
             });
         }
 
-        return new AvailableSlots { OwnerTimeZone = timeZone.Id, Slots = slots };
+        return new AvailableSlots
+        {
+            OwnerTimeZone = timeZone.Id,
+            WindowStartDate = today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            Slots = slots,
+        };
     }
 }

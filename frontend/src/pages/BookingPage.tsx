@@ -11,6 +11,16 @@ const statusLabels: Record<ApiStatus, string> = {
   unavailable: 'Сервер недоступен',
 }
 
+function ownerDay(value: string, timeZone: string) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date(value))
+  const year = parts.find((part) => part.type === 'year')!.value
+  const month = parts.find((part) => part.type === 'month')!.value
+  const day = parts.find((part) => part.type === 'day')!.value
+  return `${year}-${month}-${day}`
+}
+
 function BookingContent({ eventTypeId }: { eventTypeId?: string }) {
   const [apiStatus, setApiStatus] = useState<ApiStatus>('loading')
   const [eventTypes, setEventTypes] = useState<EventType[]>([])
@@ -81,6 +91,9 @@ function BookingContent({ eventTypeId }: { eventTypeId?: string }) {
         setSelectedStart('')
         const refreshed = await listSlots({ baseUrl: window.location.origin, path: { eventTypeId } })
         setCalendar(refreshed.data ?? null)
+        if (!refreshed.data?.slots.some((slot) => ownerDay(slot.start, refreshed.data.ownerTimeZone) === selectedDay)) {
+          setSelectedDay('')
+        }
       } else {
         setBookingError('Не удалось создать бронирование. Проверьте данные и попробуйте ещё раз.')
       }
@@ -99,22 +112,20 @@ function BookingContent({ eventTypeId }: { eventTypeId?: string }) {
 
   const slotsByDay = new Map<string, AvailableSlots['slots']>()
   if (calendar) {
-    const dateFormatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: calendar.ownerTimeZone, year: 'numeric', month: '2-digit', day: '2-digit',
-    })
     for (const slot of calendar.slots) {
-      const parts = dateFormatter.formatToParts(new Date(slot.start))
-      const year = parts.find((part) => part.type === 'year')!.value
-      const month = parts.find((part) => part.type === 'month')!.value
-      const day = parts.find((part) => part.type === 'day')!.value
-      const key = `${year}-${month}-${day}`
+      const key = ownerDay(slot.start, calendar.ownerTimeZone)
       const slots = slotsByDay.get(key)
       if (slots) slots.push(slot)
       else slotsByDay.set(key, [slot])
     }
   }
-  const availableDays = [...slotsByDay.keys()].sort()
-  const activeDay = slotsByDay.has(selectedDay) ? selectedDay : availableDays[0]
+  const days = calendar ? Array.from({ length: 14 }, (_, offset) => {
+    const date = new Date(`${calendar.windowStartDate}T00:00:00Z`)
+    date.setUTCDate(date.getUTCDate() + offset)
+    return { key: date.toISOString().slice(0, 10), label: new Intl.DateTimeFormat('ru-RU', {
+      timeZone: 'UTC', day: 'numeric', month: 'short', weekday: 'short',
+    }).format(date) }
+  }) : []
 
   useEffect(() => {
     let active = true
@@ -151,23 +162,28 @@ function BookingContent({ eventTypeId }: { eventTypeId?: string }) {
                   </Paper>
                 ) : calendar.slots.length === 0 ? <Text>В ближайшие 14 дней свободных слотов нет</Text> : (
                   <>
+                    <Text fw={700}>Шаг 1. Выберите день</Text>
                     <div role="group" aria-label="День бронирования" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 7.5rem), 1fr))', gap: 'var(--mantine-spacing-xs)' }}>
-                      {availableDays.map((day) => (
-                        <Button key={day} variant={activeDay === day ? 'filled' : 'light'} aria-pressed={activeDay === day}
-                          onClick={() => { if (day !== activeDay) { setSelectedDay(day); setSelectedStart('') } }}>
-                          {new Intl.DateTimeFormat('ru-RU', { timeZone: calendar.ownerTimeZone, day: 'numeric', month: 'short', weekday: 'short' }).format(new Date(slotsByDay.get(day)![0].start))}
+                      {days.map((day) => (
+                        <Button key={day.key} variant={selectedDay === day.key ? 'filled' : 'light'} aria-pressed={selectedDay === day.key}
+                          disabled={!slotsByDay.has(day.key)}
+                          onClick={() => { if (day.key !== selectedDay) { setSelectedDay(day.key); setSelectedStart('') } }}>
+                          {day.label}
                         </Button>
                       ))}
                     </div>
-                    <div role="group" aria-label="Свободное время" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 7rem), 1fr))', gap: 'var(--mantine-spacing-xs)' }}>
-                      {(slotsByDay.get(activeDay) ?? []).map((slot) => (
-                        <Button key={slot.start} variant={selectedStart === slot.start ? 'filled' : 'light'}
-                          aria-pressed={selectedStart === slot.start} aria-label={showTime(slot.start, calendar.ownerTimeZone)}
-                          onClick={() => setSelectedStart(slot.start)}>
-                          {new Intl.DateTimeFormat('ru-RU', { timeZone: calendar.ownerTimeZone, hour: '2-digit', minute: '2-digit' }).format(new Date(slot.start))}
-                        </Button>
-                      ))}
-                    </div>
+                    {selectedDay && slotsByDay.has(selectedDay) && <>
+                      <Text fw={700}>Шаг 2. Выберите время</Text>
+                      <div role="group" aria-label="Свободное время" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 7rem), 1fr))', gap: 'var(--mantine-spacing-xs)' }}>
+                        {slotsByDay.get(selectedDay)!.map((slot) => (
+                          <Button key={slot.start} variant={selectedStart === slot.start ? 'filled' : 'light'}
+                            aria-pressed={selectedStart === slot.start} aria-label={showTime(slot.start, calendar.ownerTimeZone)}
+                            onClick={() => setSelectedStart(slot.start)}>
+                            {new Intl.DateTimeFormat('ru-RU', { timeZone: calendar.ownerTimeZone, hour: '2-digit', minute: '2-digit' }).format(new Date(slot.start))}
+                          </Button>
+                        ))}
+                      </div>
+                    </>}
                   </>
                 )}
                 {selectedStart && !confirmation && (

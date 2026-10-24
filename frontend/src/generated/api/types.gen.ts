@@ -11,6 +11,7 @@ export type AvailableSlot = {
 
 export type AvailableSlots = {
     ownerTimeZone: string;
+    windowStartDate: string;
     slots: Array<AvailableSlot>;
 };
 

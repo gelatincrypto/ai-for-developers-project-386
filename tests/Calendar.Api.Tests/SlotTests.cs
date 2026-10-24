@@ -41,6 +41,7 @@ public class SlotTests
             using var guest = factory.CreateClient();
             var calendar = await guest.GetFromJsonAsync<Calendar>($"/api/event-types/{eventType.Id}/slots");
             Assert.NotNull(calendar);
+            Assert.Equal("2026-10-20", calendar.WindowStartDate);
             Assert.Equal(new DateTimeOffset(2026, 10, 20, 9, 0, 0, TimeSpan.FromHours(3)), calendar.Slots[0].Start);
             Assert.Equal(new DateTimeOffset(2026, 11, 2, 17, 30, 0, TimeSpan.FromHours(3)), calendar.Slots[^1].Start);
         }
@@ -105,6 +106,7 @@ public class SlotTests
 
             var empty = await guest.GetFromJsonAsync<Calendar>($"/api/event-types/{longType.Id}/slots");
             Assert.NotNull(empty);
+            Assert.Equal("2026-10-20", empty.WindowStartDate);
             Assert.Empty(empty.Slots);
         }
         finally
@@ -120,7 +122,7 @@ public class SlotTests
 
     private sealed record EventType(string Id);
 
-    private sealed record Calendar(string OwnerTimeZone, Slot[] Slots);
+    private sealed record Calendar(string OwnerTimeZone, string? WindowStartDate, Slot[] Slots);
 
     private sealed record Slot(DateTimeOffset Start, DateTimeOffset End);
 }
