@@ -224,13 +224,10 @@ components:
     EventTypeInput:
       type: object
       required:
-        - id
         - title
         - description
         - durationMinutes
       properties:
-        id:
-          type: string
         title:
           type: string
         description:

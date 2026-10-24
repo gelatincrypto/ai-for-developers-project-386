@@ -64,7 +64,7 @@ public sealed class EventTypeStore
         } : null;
     }
 
-    public bool TryCreate(EventTypeInput input)
+    public EventType Create(EventTypeInput input)
     {
         using var connection = Open();
         using var command = connection.CreateCommand();
@@ -72,11 +72,26 @@ public sealed class EventTypeStore
             INSERT OR IGNORE INTO event_types (id, title, description, duration_minutes)
             VALUES ($id, $title, $description, $duration)
             """;
-        command.Parameters.AddWithValue("$id", input.Id);
-        command.Parameters.AddWithValue("$title", input.Title.Trim());
-        command.Parameters.AddWithValue("$description", input.Description.Trim());
+        var id = command.Parameters.Add("$id", SqliteType.Text);
+        var title = input.Title.Trim();
+        var description = input.Description.Trim();
+        command.Parameters.AddWithValue("$title", title);
+        command.Parameters.AddWithValue("$description", description);
         command.Parameters.AddWithValue("$duration", input.DurationMinutes);
-        return command.ExecuteNonQuery() == 1;
+        string generatedId;
+        do
+        {
+            generatedId = Guid.NewGuid().ToString("N");
+            id.Value = generatedId;
+        } while (command.ExecuteNonQuery() == 0);
+
+        return new EventType
+        {
+            Id = generatedId,
+            Title = title,
+            Description = description,
+            DurationMinutes = input.DurationMinutes,
+        };
     }
 
     internal SqliteConnection Open()

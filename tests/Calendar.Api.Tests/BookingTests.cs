@@ -16,30 +16,31 @@ public class BookingTests
     public async Task GuestBooking_RejectsOverlapAcrossTypes_ButAllowsTouchingBoundaries()
     {
         var path = NewDatabasePath();
+        string hour;
         try
         {
             using (var factory = CreateFactory(path))
             {
                 using var owner = factory.CreateClient();
                 using var guest = factory.CreateClient();
-                await CreateType(owner, "hour", 60);
-                await CreateType(owner, "half-hour", 30);
+                hour = await CreateType(owner, "Час", 60);
+                var halfHour = await CreateType(owner, "Полчаса", 30);
 
-                var first = await guest.PostAsJsonAsync("/api/bookings", Request("hour", "2026-10-21T09:00:00+03:00"));
+                var first = await guest.PostAsJsonAsync("/api/bookings", Request(hour, "2026-10-21T09:00:00+03:00"));
                 Assert.Equal(HttpStatusCode.OK, first.StatusCode);
                 using var confirmation = JsonDocument.Parse(await first.Content.ReadAsStringAsync());
                 Assert.False(string.IsNullOrWhiteSpace(confirmation.RootElement.GetProperty("id").GetString()));
-                Assert.Equal("hour", confirmation.RootElement.GetProperty("eventType").GetProperty("id").GetString());
+                Assert.Equal(hour, confirmation.RootElement.GetProperty("eventType").GetProperty("id").GetString());
                 Assert.Equal("2026-10-21T09:00:00.0000000+03:00", confirmation.RootElement.GetProperty("start").GetString());
                 Assert.Equal("2026-10-21T10:00:00.0000000+03:00", confirmation.RootElement.GetProperty("end").GetString());
                 Assert.DoesNotContain("guest@example.com", await first.Content.ReadAsStringAsync());
 
                 Assert.Equal(HttpStatusCode.Conflict,
-                    (await guest.PostAsJsonAsync("/api/bookings", Request("half-hour", "2026-10-21T09:30:00+03:00"))).StatusCode);
+                    (await guest.PostAsJsonAsync("/api/bookings", Request(halfHour, "2026-10-21T09:30:00+03:00"))).StatusCode);
                 Assert.Equal(HttpStatusCode.OK,
-                    (await guest.PostAsJsonAsync("/api/bookings", Request("half-hour", "2026-10-21T10:00:00+03:00"))).StatusCode);
+                    (await guest.PostAsJsonAsync("/api/bookings", Request(halfHour, "2026-10-21T10:00:00+03:00"))).StatusCode);
 
-                using var slots = await guest.GetAsync("/api/event-types/half-hour/slots");
+                using var slots = await guest.GetAsync($"/api/event-types/{halfHour}/slots");
                 var calendar = await slots.Content.ReadFromJsonAsync<Calendar>();
                 Assert.NotNull(calendar);
                 Assert.DoesNotContain(calendar.Slots, slot => slot.Start.StartsWith("2026-10-21T09:", StringComparison.Ordinal));
@@ -50,7 +51,7 @@ public class BookingTests
             using var restarted = CreateFactory(path);
             using var visitor = restarted.CreateClient();
             Assert.Equal(HttpStatusCode.Conflict,
-                (await visitor.PostAsJsonAsync("/api/bookings", Request("hour", "2026-10-21T09:00:00+03:00"))).StatusCode);
+                (await visitor.PostAsJsonAsync("/api/bookings", Request(hour, "2026-10-21T09:00:00+03:00"))).StatusCode);
         }
         finally
         {
@@ -67,7 +68,7 @@ public class BookingTests
             using var factory = CreateFactory(path);
             using var owner = factory.CreateClient();
             using var guest = factory.CreateClient();
-            await CreateType(owner, "hour", 60);
+            var hour = await CreateType(owner, "Час", 60);
 
             foreach (var time in new[]
             {
@@ -80,15 +81,15 @@ public class BookingTests
             })
             {
                 Assert.Equal(HttpStatusCode.Conflict,
-                    (await guest.PostAsJsonAsync("/api/bookings", Request("hour", time))).StatusCode);
+                    (await guest.PostAsJsonAsync("/api/bookings", Request(hour, time))).StatusCode);
             }
 
             Assert.Equal(HttpStatusCode.BadRequest,
-                (await guest.PostAsJsonAsync("/api/bookings", Request("hour", "2026-10-21T09:00:00"))).StatusCode);
+                (await guest.PostAsJsonAsync("/api/bookings", Request(hour, "2026-10-21T09:00:00"))).StatusCode);
             Assert.Equal(HttpStatusCode.BadRequest,
                 (await guest.PostAsJsonAsync("/api/bookings", new
                 {
-                    eventTypeId = "hour",
+                    eventTypeId = hour,
                     start = "2026-10-21T09:00:00+03:00",
                     guestName = " ",
                     guestEmail = "not-an-email",
@@ -110,14 +111,14 @@ public class BookingTests
         {
             using var factory = CreateFactory(path);
             using var owner = factory.CreateClient();
-            await CreateType(owner, "hour", 60);
+            var hour = await CreateType(owner, "Час", 60);
             using var guest1 = factory.CreateClient();
             using var guest2 = factory.CreateClient();
             var time = "2026-10-21T11:00:00+03:00";
 
             var results = await Task.WhenAll(
-                guest1.PostAsJsonAsync("/api/bookings", Request("hour", time)),
-                guest2.PostAsJsonAsync("/api/bookings", Request("hour", time)));
+                guest1.PostAsJsonAsync("/api/bookings", Request(hour, time)),
+                guest2.PostAsJsonAsync("/api/bookings", Request(hour, time)));
             Assert.Equal(1, results.Count(response => response.StatusCode == HttpStatusCode.OK));
             Assert.Equal(1, results.Count(response => response.StatusCode == HttpStatusCode.Conflict));
         }
@@ -146,12 +147,16 @@ public class BookingTests
             });
         });
 
-    private static async Task CreateType(HttpClient owner, string id, int minutes)
+    private static async Task<string> CreateType(HttpClient owner, string title, int minutes)
     {
         Assert.Equal(HttpStatusCode.OK, (await owner.PostAsJsonAsync("/api/owner/session",
             new { username = "test-owner", password = "test-password" })).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await owner.PostAsJsonAsync("/api/event-types",
-            new { id, title = id, description = "Звонок", durationMinutes = minutes })).StatusCode);
+        using var created = await owner.PostAsJsonAsync("/api/event-types",
+            new { title, description = "Звонок", durationMinutes = minutes });
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        var eventType = await created.Content.ReadFromJsonAsync<EventType>();
+        Assert.NotNull(eventType);
+        return eventType.Id;
     }
 
     private sealed class FrozenClock : TimeProvider
@@ -160,6 +165,8 @@ public class BookingTests
     }
 
     private sealed record Calendar(Slot[] Slots);
+
+    private sealed record EventType(string Id);
 
     private sealed record Slot(string Start);
 }

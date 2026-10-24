@@ -17,6 +17,7 @@ function BookingContent({ eventTypeId }: { eventTypeId?: string }) {
   const [catalogStatus, setCatalogStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [calendar, setCalendar] = useState<AvailableSlots | null>(null)
   const [calendarStatus, setCalendarStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [selectedDay, setSelectedDay] = useState('')
   const [selectedStart, setSelectedStart] = useState('')
   const [guestName, setGuestName] = useState('')
   const [guestEmail, setGuestEmail] = useState('')
@@ -96,6 +97,25 @@ function BookingContent({ eventTypeId }: { eventTypeId?: string }) {
     }).format(new Date(value))
   }
 
+  const slotsByDay = new Map<string, AvailableSlots['slots']>()
+  if (calendar) {
+    const dateFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: calendar.ownerTimeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+    })
+    for (const slot of calendar.slots) {
+      const parts = dateFormatter.formatToParts(new Date(slot.start))
+      const year = parts.find((part) => part.type === 'year')!.value
+      const month = parts.find((part) => part.type === 'month')!.value
+      const day = parts.find((part) => part.type === 'day')!.value
+      const key = `${year}-${month}-${day}`
+      const slots = slotsByDay.get(key)
+      if (slots) slots.push(slot)
+      else slotsByDay.set(key, [slot])
+    }
+  }
+  const availableDays = [...slotsByDay.keys()].sort()
+  const activeDay = slotsByDay.has(selectedDay) ? selectedDay : availableDays[0]
+
   useEffect(() => {
     let active = true
     void listEventTypes({ baseUrl: window.location.origin }).then(({ data }) => {
@@ -115,28 +135,40 @@ function BookingContent({ eventTypeId }: { eventTypeId?: string }) {
         <Title order={1}>Бронирование</Title>
         <Paper withBorder radius="md" p="lg">
           <Stack gap="md" align="flex-start">
-            <Text>Выберите тип события и свободное время</Text>
-            {eventTypeId && <Text>Выбранный тип: {eventTypes.find((item) => item.id === eventTypeId)?.title ?? eventTypeId}</Text>}
+            {!confirmation && <Text>Выберите тип события и свободное время</Text>}
+            {eventTypeId && !confirmation && <Text>Выбранный тип: {eventTypes.find((item) => item.id === eventTypeId)?.title ?? eventTypeId}</Text>}
             {eventTypeId && calendarStatus === 'loading' && <Text>Загружаем календарь…</Text>}
             {eventTypeId && calendarStatus === 'error' && <Text role="alert">Не удалось загрузить календарь</Text>}
             {eventTypeId && calendar && calendarStatus === 'ready' && (
-              <Stack>
+              <Stack w="100%">
                 <Text>Часовой пояс владельца: {calendar.ownerTimeZone}</Text>
                 {confirmation ? (
                   <Paper withBorder p="md" role="status">
                     <Title order={2}>Бронирование подтверждено</Title>
-                    <Text>Номер: {confirmation.id}</Text>
                     <Text>Тип события: {confirmation.eventType.title}</Text>
                     <Text>Начало: {showTime(confirmation.start, calendar.ownerTimeZone)}</Text>
                     <Text>Окончание: {showTime(confirmation.end, calendar.ownerTimeZone)}</Text>
                   </Paper>
                 ) : calendar.slots.length === 0 ? <Text>В ближайшие 14 дней свободных слотов нет</Text> : (
-                  calendar.slots.map((slot) => (
-                    <Button key={slot.start} variant={selectedStart === slot.start ? 'filled' : 'light'}
-                      onClick={() => setSelectedStart(slot.start)}>
-                      {showTime(slot.start, calendar.ownerTimeZone)}
-                    </Button>
-                  ))
+                  <>
+                    <div role="group" aria-label="День бронирования" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 7.5rem), 1fr))', gap: 'var(--mantine-spacing-xs)' }}>
+                      {availableDays.map((day) => (
+                        <Button key={day} variant={activeDay === day ? 'filled' : 'light'} aria-pressed={activeDay === day}
+                          onClick={() => { if (day !== activeDay) { setSelectedDay(day); setSelectedStart('') } }}>
+                          {new Intl.DateTimeFormat('ru-RU', { timeZone: calendar.ownerTimeZone, day: 'numeric', month: 'short', weekday: 'short' }).format(new Date(slotsByDay.get(day)![0].start))}
+                        </Button>
+                      ))}
+                    </div>
+                    <div role="group" aria-label="Свободное время" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 7rem), 1fr))', gap: 'var(--mantine-spacing-xs)' }}>
+                      {(slotsByDay.get(activeDay) ?? []).map((slot) => (
+                        <Button key={slot.start} variant={selectedStart === slot.start ? 'filled' : 'light'}
+                          aria-pressed={selectedStart === slot.start} aria-label={showTime(slot.start, calendar.ownerTimeZone)}
+                          onClick={() => setSelectedStart(slot.start)}>
+                          {new Intl.DateTimeFormat('ru-RU', { timeZone: calendar.ownerTimeZone, hour: '2-digit', minute: '2-digit' }).format(new Date(slot.start))}
+                        </Button>
+                      ))}
+                    </div>
+                  </>
                 )}
                 {selectedStart && !confirmation && (
                   <form onSubmit={(event) => void book(event)}>

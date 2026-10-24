@@ -26,28 +26,28 @@ public class OwnerMeetingsTests
                 await Login(owner);
                 Assert.Empty((await owner.GetFromJsonAsync<Meeting[]>("/api/owner/bookings"))!);
 
-                await AddEventType(owner, "short", 30);
-                await AddEventType(owner, "long", 60);
-                await Book(guest, "short", "2026-10-20T10:30:00+03:00", "Ольга", "olga@example.com");
-                await Book(guest, "long", "2026-10-21T11:00:00+03:00", "Борис", "boris@example.com");
-                await Book(guest, "short", "2026-10-21T09:00:00+03:00", "Анна", "anna@example.com");
+                var shortType = await AddEventType(owner, "Короткий", 30);
+                var longType = await AddEventType(owner, "Длинный", 60);
+                await Book(guest, shortType, "2026-10-20T10:30:00+03:00", "Ольга", "olga@example.com");
+                await Book(guest, longType, "2026-10-21T11:00:00+03:00", "Борис", "boris@example.com");
+                await Book(guest, shortType, "2026-10-21T09:00:00+03:00", "Анна", "anna@example.com");
 
                 clock.Now = new DateTimeOffset(2026, 10, 20, 7, 30, 0, TimeSpan.Zero);
                 var meetings = await owner.GetFromJsonAsync<Meeting[]>("/api/owner/bookings");
                 Assert.NotNull(meetings);
                 Assert.Equal(2, meetings.Length);
-                Assert.Equal("short", meetings[0].EventType.Id);
+                Assert.Equal(shortType, meetings[0].EventType.Id);
                 Assert.Equal("Анна", meetings[0].GuestName);
                 Assert.Equal("anna@example.com", meetings[0].GuestEmail);
                 Assert.Equal("2026-10-21T09:00:00.0000000+03:00", meetings[0].Start);
                 Assert.Equal("2026-10-21T09:30:00.0000000+03:00", meetings[0].End);
-                Assert.Equal("long", meetings[1].EventType.Id);
+                Assert.Equal(longType, meetings[1].EventType.Id);
                 Assert.Equal("Борис", meetings[1].GuestName);
                 Assert.Equal("boris@example.com", meetings[1].GuestEmail);
                 Assert.Equal("2026-10-21T11:00:00.0000000+03:00", meetings[1].Start);
                 Assert.Equal(HttpStatusCode.Unauthorized, (await guest.GetAsync("/api/owner/bookings")).StatusCode);
                 Assert.DoesNotContain("anna@example.com", await (await guest.GetAsync("/api/event-types")).Content.ReadAsStringAsync());
-                Assert.DoesNotContain("anna@example.com", await (await guest.GetAsync("/api/event-types/short/slots")).Content.ReadAsStringAsync());
+                Assert.DoesNotContain("anna@example.com", await (await guest.GetAsync($"/api/event-types/{shortType}/slots")).Content.ReadAsStringAsync());
             }
 
             using var restarted = CreateFactory(path, clock);
@@ -79,9 +79,15 @@ public class OwnerMeetingsTests
         Assert.Equal(HttpStatusCode.OK, (await owner.PostAsJsonAsync("/api/owner/session",
             new { username = "test-owner", password = "test-password" })).StatusCode);
 
-    private static async Task AddEventType(HttpClient owner, string id, int durationMinutes) =>
-        Assert.Equal(HttpStatusCode.OK, (await owner.PostAsJsonAsync("/api/event-types",
-            new { id, title = id, description = "Тест", durationMinutes })).StatusCode);
+    private static async Task<string> AddEventType(HttpClient owner, string title, int durationMinutes)
+    {
+        using var created = await owner.PostAsJsonAsync("/api/event-types",
+            new { title, description = "Тест", durationMinutes });
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        var eventType = await created.Content.ReadFromJsonAsync<EventType>();
+        Assert.NotNull(eventType);
+        return eventType.Id;
+    }
 
     private static async Task Book(HttpClient guest, string eventTypeId, string start, string guestName, string guestEmail) =>
         Assert.Equal(HttpStatusCode.OK, (await guest.PostAsJsonAsync("/api/bookings",

@@ -10,26 +10,14 @@ public sealed class EventTypesController(EventTypeStore store) : EventTypesApiCo
 {
     public override IActionResult CreateEventType(EventTypeInput eventTypeInput)
     {
-        if (string.IsNullOrWhiteSpace(eventTypeInput.Id) ||
-            string.IsNullOrWhiteSpace(eventTypeInput.Title) ||
+        if (string.IsNullOrWhiteSpace(eventTypeInput.Title) ||
             string.IsNullOrWhiteSpace(eventTypeInput.Description) ||
             eventTypeInput.DurationMinutes <= 0)
         {
-            return BadRequest(new { error = "Заполните идентификатор, название, описание и положительную длительность." });
+            return BadRequest(new { error = "Заполните название, описание и положительную длительность." });
         }
 
-        if (!store.TryCreate(eventTypeInput))
-        {
-            return Conflict(new { error = "Тип события с таким идентификатором уже существует." });
-        }
-
-        return Ok(new EventType
-        {
-            Id = eventTypeInput.Id,
-            Title = eventTypeInput.Title.Trim(),
-            Description = eventTypeInput.Description.Trim(),
-            DurationMinutes = eventTypeInput.DurationMinutes,
-        });
+        return Ok(store.Create(eventTypeInput));
     }
 
     [AllowAnonymous]

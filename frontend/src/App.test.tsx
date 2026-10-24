@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { MantineProvider } from '@mantine/core'
 import { MemoryRouter } from 'react-router'
 import App from './App'
@@ -114,14 +114,19 @@ test('созданный владельцем тип виден гостю в к
   vi.stubGlobal('Request', class {
     url: string
     method: string
+    body: BodyInit | null | undefined
     constructor(url: string, init: RequestInit) {
       this.url = url
       this.method = init.method ?? 'GET'
+      this.body = init.body
     }
   })
   let created = false
-  vi.stubGlobal('fetch', vi.fn(async (request: { method: string; url: string }) => {
-    if (request.url.endsWith('/api/event-types') && request.method === 'POST') created = true
+  vi.stubGlobal('fetch', vi.fn(async (request: { method: string; url: string; body?: BodyInit | null }) => {
+    if (request.url.endsWith('/api/event-types') && request.method === 'POST') {
+      expect(JSON.parse(String(request.body))).toEqual({ title: 'Консультация', description: 'Знакомство', durationMinutes: 45 })
+      created = true
+    }
     const data = request.url.endsWith('/api/owner/bookings') ? '[]'
       : request.url.endsWith('/api/owner/session')
       ? '{"username":"test-owner"}'
@@ -147,7 +152,7 @@ test('созданный владельцем тип виден гостю в к
   )
 
   expect(await screen.findByRole('heading', { name: 'Новый тип события' })).toBeTruthy()
-  fireEvent.change(screen.getByRole('textbox', { name: 'Идентификатор' }), { target: { value: 'consultation' } })
+  expect(screen.queryByRole('textbox', { name: 'Идентификатор' })).toBeNull()
   fireEvent.change(screen.getByRole('textbox', { name: 'Название' }), { target: { value: 'Консультация' } })
   fireEvent.change(screen.getByRole('textbox', { name: 'Описание' }), { target: { value: 'Знакомство' } })
   fireEvent.change(screen.getByRole('spinbutton', { name: 'Длительность в минутах' }), { target: { value: '45' } })
@@ -162,7 +167,7 @@ test('созданный владельцем тип виден гостю в к
   fireEvent.click(screen.getByRole('link', { name: 'Открыть календарь: Консультация' }))
   expect(await screen.findByText('Выбранный тип: Консультация')).toBeTruthy()
   expect(await screen.findByText('Часовой пояс владельца: Europe/Moscow')).toBeTruthy()
-  expect(await screen.findByText(/26 окт.*09:00/)).toBeTruthy()
+  expect(await screen.findByRole('button', { name: /26 окт.*09:00/ })).toBeTruthy()
 })
 
 test('пустой календарь объясняет отсутствие слотов', async () => {
@@ -191,6 +196,48 @@ test('пустой календарь объясняет отсутствие с
 
   fireEvent.click(await screen.findByRole('link', { name: 'Открыть календарь: Длинный звонок' }))
   expect(await screen.findByText('В ближайшие 14 дней свободных слотов нет')).toBeTruthy()
+})
+
+test('гость выбирает день и слот без прокрутки слотов других дней', async () => {
+  vi.stubGlobal('Request', class {
+    url: string
+    constructor(url: string) { this.url = url }
+  })
+  vi.stubGlobal('fetch', vi.fn(async (request: { url: string }) => ({
+    ok: true,
+    status: 200,
+    headers: new Headers({ 'Content-Type': 'application/json' }),
+    text: async () => request.url.endsWith('/slots')
+      ? JSON.stringify({ ownerTimeZone: 'Europe/Moscow', slots: [
+        { start: '2026-10-26T00:30:00+03:00', end: '2026-10-26T01:00:00+03:00' },
+        { start: '2026-10-26T09:00:00+03:00', end: '2026-10-26T09:30:00+03:00' },
+        { start: '2026-10-27T09:00:00+03:00', end: '2026-10-27T09:30:00+03:00' },
+      ] })
+      : request.url.endsWith('/api/health') ? '{"status":"ok"}'
+      : '[{"id":"call","title":"Звонок","description":"Тест","durationMinutes":30}]',
+  })))
+
+  render(
+    <MantineProvider env="test">
+      <MemoryRouter initialEntries={['/booking/call']}><App /></MemoryRouter>
+    </MantineProvider>,
+  )
+
+  const days = await screen.findByRole('group', { name: 'День бронирования' })
+  const firstDay = within(days).getByRole('button', { name: /26 окт/i })
+  const secondDay = within(days).getByRole('button', { name: /27 окт/i })
+  expect(firstDay.getAttribute('aria-pressed')).toBe('true')
+  expect(screen.getByRole('button', { name: /26 окт.*00:30/i })).toBeTruthy()
+  expect(screen.queryByRole('button', { name: /27 окт.*09:00/i })).toBeNull()
+
+  fireEvent.click(secondDay)
+  expect(secondDay.getAttribute('aria-pressed')).toBe('true')
+  expect(screen.queryByRole('button', { name: /26 окт.*00:30/i })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: /27 окт.*09:00/i }))
+  expect(screen.getByText(/Выбрано:.*27 окт.*09:00/i)).toBeTruthy()
+
+  fireEvent.click(firstDay)
+  expect(screen.queryByText(/Выбрано:/)).toBeNull()
 })
 
 test('гость после конфликта выбирает другой слот и видит подтверждение', async () => {
@@ -236,9 +283,11 @@ test('гость после конфликта выбирает другой с�
   fireEvent.click(await screen.findByRole('button', { name: /21 окт.*09:30/ }))
   fireEvent.click(screen.getByRole('button', { name: 'Забронировать' }))
   expect(await screen.findByRole('heading', { name: 'Бронирование подтверждено' })).toBeTruthy()
-  expect(screen.getByText('Номер: booking-1')).toBeTruthy()
+  expect(screen.queryByText('Выберите тип события и свободное время')).toBeNull()
+  expect(screen.queryByText(/Номер: booking-1/)).toBeNull()
   expect(screen.getByText('Тип события: Консультация')).toBeTruthy()
   expect(screen.getByText(/Окончание:.*10:00/)).toBeTruthy()
+  expect(screen.getByText('Часовой пояс владельца: Europe/Moscow')).toBeTruthy()
 })
 
 test('после подтверждения переход к другому типу показывает его календарь', async () => {

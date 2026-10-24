@@ -42,7 +42,6 @@ namespace CalendarApi {
   op logout(): void;
 
   model EventTypeInput {
-    id: string;
     title: string;
     description: string;
     @minValue(1)
