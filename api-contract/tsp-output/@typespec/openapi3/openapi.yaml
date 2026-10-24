@@ -166,12 +166,17 @@ components:
         - ownerTimeZone
         - windowStartDate
         - slots
+        - busySlots
       properties:
         ownerTimeZone:
           type: string
         windowStartDate:
           type: string
         slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailableSlot'
+        busySlots:
           type: array
           items:
             $ref: '#/components/schemas/AvailableSlot'

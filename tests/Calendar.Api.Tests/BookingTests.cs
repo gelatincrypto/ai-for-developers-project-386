@@ -35,6 +35,16 @@ public class BookingTests
                 Assert.Equal("2026-10-21T10:00:00.0000000+03:00", confirmation.RootElement.GetProperty("end").GetString());
                 Assert.DoesNotContain("guest@example.com", await first.Content.ReadAsStringAsync());
 
+                using var beforeSecondBooking = await guest.GetAsync($"/api/event-types/{halfHour}/slots");
+                var publicCalendar = await beforeSecondBooking.Content.ReadAsStringAsync();
+                Assert.DoesNotContain("guest@example.com", publicCalendar);
+                Assert.DoesNotContain("Гость", publicCalendar);
+                using var calendarDocument = JsonDocument.Parse(publicCalendar);
+                var busySlots = calendarDocument.RootElement.GetProperty("busySlots");
+                Assert.Contains(busySlots.EnumerateArray(), slot => slot.GetProperty("start").GetString()!.StartsWith("2026-10-21T09:00", StringComparison.Ordinal));
+                Assert.Contains(busySlots.EnumerateArray(), slot => slot.GetProperty("start").GetString()!.StartsWith("2026-10-21T09:30", StringComparison.Ordinal));
+                Assert.Contains(calendarDocument.RootElement.GetProperty("slots").EnumerateArray(), slot => slot.GetProperty("start").GetString()!.StartsWith("2026-10-21T10:00", StringComparison.Ordinal));
+
                 Assert.Equal(HttpStatusCode.Conflict,
                     (await guest.PostAsJsonAsync("/api/bookings", Request(halfHour, "2026-10-21T09:30:00+03:00"))).StatusCode);
                 Assert.Equal(HttpStatusCode.OK,

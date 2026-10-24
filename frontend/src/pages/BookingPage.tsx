@@ -91,7 +91,7 @@ function BookingContent({ eventTypeId }: { eventTypeId?: string }) {
         setSelectedStart('')
         const refreshed = await listSlots({ baseUrl: window.location.origin, path: { eventTypeId } })
         setCalendar(refreshed.data ?? null)
-        if (!refreshed.data?.slots.some((slot) => ownerDay(slot.start, refreshed.data.ownerTimeZone) === selectedDay)) {
+        if (!refreshed.data || ![...refreshed.data.slots, ...refreshed.data.busySlots].some((slot) => ownerDay(slot.start, refreshed.data.ownerTimeZone) === selectedDay)) {
           setSelectedDay('')
         }
       } else {
@@ -110,13 +110,19 @@ function BookingContent({ eventTypeId }: { eventTypeId?: string }) {
     }).format(new Date(value))
   }
 
-  const slotsByDay = new Map<string, AvailableSlots['slots']>()
+  const slotsByDay = new Map<string, { slot: AvailableSlots['slots'][number]; busy: boolean }[]>()
   if (calendar) {
-    for (const slot of calendar.slots) {
+    for (const [slot, busy] of [
+      ...calendar.slots.map((slot) => [slot, false] as const),
+      ...calendar.busySlots.map((slot) => [slot, true] as const),
+    ]) {
       const key = ownerDay(slot.start, calendar.ownerTimeZone)
       const slots = slotsByDay.get(key)
-      if (slots) slots.push(slot)
-      else slotsByDay.set(key, [slot])
+      if (slots) slots.push({ slot, busy })
+      else slotsByDay.set(key, [{ slot, busy }])
+    }
+    for (const slots of slotsByDay.values()) {
+      slots.sort((a, b) => new Date(a.slot.start).getTime() - new Date(b.slot.start).getTime())
     }
   }
   const days = calendar ? Array.from({ length: 14 }, (_, offset) => {
@@ -160,8 +166,9 @@ function BookingContent({ eventTypeId }: { eventTypeId?: string }) {
                     <Text>Начало: {showTime(confirmation.start, calendar.ownerTimeZone)}</Text>
                     <Text>Окончание: {showTime(confirmation.end, calendar.ownerTimeZone)}</Text>
                   </Paper>
-                ) : calendar.slots.length === 0 ? <Text>В ближайшие 14 дней свободных слотов нет</Text> : (
+                ) : calendar.slots.length === 0 && calendar.busySlots.length === 0 ? <Text>В ближайшие 14 дней подходящих слотов нет</Text> : (
                   <>
+                    {calendar.slots.length === 0 && <Text>В ближайшие 14 дней свободных слотов нет</Text>}
                     <Text fw={700}>Шаг 1. Выберите день</Text>
                     <div role="group" aria-label="День бронирования" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 7.5rem), 1fr))', gap: 'var(--mantine-spacing-xs)' }}>
                       {days.map((day) => (
@@ -174,12 +181,14 @@ function BookingContent({ eventTypeId }: { eventTypeId?: string }) {
                     </div>
                     {selectedDay && slotsByDay.has(selectedDay) && <>
                       <Text fw={700}>Шаг 2. Выберите время</Text>
-                      <div role="group" aria-label="Свободное время" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 7rem), 1fr))', gap: 'var(--mantine-spacing-xs)' }}>
-                        {slotsByDay.get(selectedDay)!.map((slot) => (
-                          <Button key={slot.start} variant={selectedStart === slot.start ? 'filled' : 'light'}
-                            aria-pressed={selectedStart === slot.start} aria-label={showTime(slot.start, calendar.ownerTimeZone)}
+                      <div role="group" aria-label="Время бронирования" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 7rem), 1fr))', gap: 'var(--mantine-spacing-xs)' }}>
+                        {slotsByDay.get(selectedDay)!.map(({ slot, busy }) => (
+                          <Button key={slot.start} variant={busy ? 'light' : selectedStart === slot.start ? 'filled' : 'light'}
+                            color={busy ? 'gray' : undefined} disabled={busy}
+                            aria-pressed={busy ? undefined : selectedStart === slot.start}
+                            aria-label={`${showTime(slot.start, calendar.ownerTimeZone)}${busy ? ', занято' : ''}`}
                             onClick={() => setSelectedStart(slot.start)}>
-                            {new Intl.DateTimeFormat('ru-RU', { timeZone: calendar.ownerTimeZone, hour: '2-digit', minute: '2-digit' }).format(new Date(slot.start))}
+                            {new Intl.DateTimeFormat('ru-RU', { timeZone: calendar.ownerTimeZone, hour: '2-digit', minute: '2-digit' }).format(new Date(slot.start))}{busy && ' · занято'}
                           </Button>
                         ))}
                       </div>

@@ -74,6 +74,7 @@ namespace CalendarApi {
     ownerTimeZone: string;
     windowStartDate: string;
     slots: AvailableSlot[];
+    busySlots: AvailableSlot[];
   }
 
   @tag("Slots")
