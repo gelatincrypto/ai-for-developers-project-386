@@ -8,6 +8,8 @@
 Учебный проект Хекслета: https://ru.hexlet.io/programs/ai-for-developers
 Как это должно работать: https://files.hexlet.app/a/2ipc5m
 
+Работающее приложение: https://calendar-hexlet-386.onrender.com
+
 ## Стек
 
 - C# / ASP.NET Core 10 (MVC-контроллеры)
