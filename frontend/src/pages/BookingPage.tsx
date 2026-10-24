@@ -199,20 +199,22 @@ function BookingContent({ eventTypeId }: { eventTypeId?: string }) {
                 {bookingError && <Text role="alert" c="red">{bookingError}</Text>}
               </Stack>
             )}
-            <Title order={2}>Типы событий</Title>
-            {catalogStatus === 'loading' && <Text>Загружаем типы событий…</Text>}
-            {catalogStatus === 'error' && <Text role="alert">Не удалось загрузить типы событий</Text>}
-            {catalogStatus === 'ready' && eventTypes.length === 0 && <Text>Типы событий пока не добавлены</Text>}
-            {eventTypes.map((item) => (
-              <Paper key={item.id} withBorder p="md">
-                <Text fw={700}>{item.title}</Text>
-                <Text>{item.description}</Text>
-                <Text>{item.durationMinutes} мин.</Text>
-                <Button component={Link} to={`/booking/${encodeURIComponent(item.id)}`} variant="light">
-                  Открыть календарь: {item.title}
-                </Button>
-              </Paper>
-            ))}
+            {!eventTypeId && <>
+              <Title order={2}>Типы событий</Title>
+              {catalogStatus === 'loading' && <Text>Загружаем типы событий…</Text>}
+              {catalogStatus === 'error' && <Text role="alert">Не удалось загрузить типы событий</Text>}
+              {catalogStatus === 'ready' && eventTypes.length === 0 && <Text>Типы событий пока не добавлены</Text>}
+              {eventTypes.map((item) => (
+                <Paper key={item.id} withBorder p="md">
+                  <Text fw={700}>{item.title}</Text>
+                  <Text>{item.description}</Text>
+                  <Text>{item.durationMinutes} мин.</Text>
+                  <Button component={Link} to={`/booking/${encodeURIComponent(item.id)}`} variant="light">
+                    Открыть календарь: {item.title}
+                  </Button>
+                </Paper>
+              ))}
+            </>}
             <div role="status" aria-live="polite">
               <Badge
                 color={apiStatus === 'available' ? 'green' : apiStatus === 'unavailable' ? 'red' : 'gray'}

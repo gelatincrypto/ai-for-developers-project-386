@@ -17,11 +17,6 @@ public sealed class SlotSchedule(IConfiguration configuration, TimeProvider cloc
         for (var day = 0; day < 14; day++)
         {
             var date = today.AddDays(day);
-            if (date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
-            {
-                continue;
-            }
-
             for (var minute = 9 * 60; minute + eventType.DurationMinutes <= 18 * 60; minute += 30)
             {
                 var localStart = date.ToDateTime(new TimeOnly(minute / 60, minute % 60));

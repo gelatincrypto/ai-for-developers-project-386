@@ -75,13 +75,20 @@ public class BookingTests
                 "2026-10-20T09:00:00+03:00", // passed today
                 "2026-10-21T08:30:00+03:00", // before work
                 "2026-10-21T17:30:00+03:00", // end beyond 18:00
-                "2026-10-24T09:00:00+03:00", // weekend
                 "2026-11-03T09:00:00+03:00", // fifteenth date
                 "2026-10-21T09:15:00+03:00", // off grid
             })
             {
                 Assert.Equal(HttpStatusCode.Conflict,
                     (await guest.PostAsJsonAsync("/api/bookings", Request(hour, time))).StatusCode);
+            }
+
+            foreach (var weekend in new[] { "2026-10-24T09:00:00+03:00", "2026-10-25T09:00:00+03:00" })
+            {
+                Assert.Equal(HttpStatusCode.OK,
+                    (await guest.PostAsJsonAsync("/api/bookings", Request(hour, weekend))).StatusCode);
+                Assert.Equal(HttpStatusCode.Conflict,
+                    (await guest.PostAsJsonAsync("/api/bookings", Request(hour, weekend))).StatusCode);
             }
 
             Assert.Equal(HttpStatusCode.BadRequest,
