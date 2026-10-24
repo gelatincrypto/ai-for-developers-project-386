@@ -43,6 +43,8 @@ public class SlotTests
             Assert.NotNull(calendar);
             Assert.Equal("2026-10-20", calendar.WindowStartDate);
             Assert.Equal(new DateTimeOffset(2026, 10, 20, 9, 0, 0, TimeSpan.FromHours(3)), calendar.Slots[0].Start);
+            Assert.Contains(calendar.Slots, slot => slot.Start == new DateTimeOffset(2026, 10, 24, 9, 0, 0, TimeSpan.FromHours(3)));
+            Assert.Contains(calendar.Slots, slot => slot.Start == new DateTimeOffset(2026, 10, 25, 9, 0, 0, TimeSpan.FromHours(3)));
             Assert.Equal(new DateTimeOffset(2026, 11, 2, 17, 30, 0, TimeSpan.FromHours(3)), calendar.Slots[^1].Start);
         }
         finally
@@ -99,10 +101,10 @@ public class SlotTests
                 Assert.Equal(0, slot.Start.Minute % 30);
                 Assert.Equal(TimeSpan.FromMinutes(75), slot.End - slot.Start);
                 Assert.True(slot.End.Hour < 18 || slot.End is { Hour: 18, Minute: 0 });
-                Assert.NotEqual(DayOfWeek.Saturday, slot.Start.DayOfWeek);
-                Assert.NotEqual(DayOfWeek.Sunday, slot.Start.DayOfWeek);
                 Assert.InRange(DateOnly.FromDateTime(slot.Start.DateTime), new DateOnly(2026, 10, 20), new DateOnly(2026, 11, 2));
             });
+            Assert.Contains(calendar.Slots, slot => slot.Start.DayOfWeek == DayOfWeek.Saturday);
+            Assert.Contains(calendar.Slots, slot => slot.Start.DayOfWeek == DayOfWeek.Sunday);
 
             var empty = await guest.GetFromJsonAsync<Calendar>($"/api/event-types/{longType.Id}/slots");
             Assert.NotNull(empty);

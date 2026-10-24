@@ -166,6 +166,8 @@ test('созданный владельцем тип виден гостю в к
   expect(screen.getByText('45 мин.')).toBeTruthy()
   fireEvent.click(screen.getByRole('link', { name: 'Открыть календарь: Консультация' }))
   expect(await screen.findByText('Выбранный тип: Консультация')).toBeTruthy()
+  expect(screen.queryByRole('heading', { name: 'Типы событий' })).toBeNull()
+  expect(screen.queryByRole('link', { name: 'Открыть календарь: Консультация' })).toBeNull()
   expect(await screen.findByText('Часовой пояс владельца: Europe/Moscow')).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: /26 окт/i }))
   expect(await screen.findByRole('button', { name: /26 окт.*09:00/ })).toBeTruthy()
@@ -210,6 +212,8 @@ test('гость выбирает день и слот без прокрутки
     headers: new Headers({ 'Content-Type': 'application/json' }),
     text: async () => request.url.endsWith('/slots')
       ? JSON.stringify({ ownerTimeZone: 'Europe/Moscow', windowStartDate: '2026-10-24', slots: [
+        { start: '2026-10-24T09:00:00+03:00', end: '2026-10-24T09:30:00+03:00' },
+        { start: '2026-10-25T09:00:00+03:00', end: '2026-10-25T09:30:00+03:00' },
         { start: '2026-10-26T00:30:00+03:00', end: '2026-10-26T01:00:00+03:00' },
         { start: '2026-10-26T09:00:00+03:00', end: '2026-10-26T09:30:00+03:00' },
         { start: '2026-10-27T09:00:00+03:00', end: '2026-10-27T09:30:00+03:00' },
@@ -226,13 +230,16 @@ test('гость выбирает день и слот без прокрутки
 
   const days = await screen.findByRole('group', { name: 'День бронирования' })
   expect(within(days).getAllByRole('button')).toHaveLength(14)
-  expect(within(days).getByRole('button', { name: /24 окт/i }).hasAttribute('disabled')).toBe(true)
+  expect(within(days).getByRole('button', { name: /24 окт/i }).hasAttribute('disabled')).toBe(false)
+  expect(within(days).getByRole('button', { name: /25 окт/i }).hasAttribute('disabled')).toBe(false)
   expect(within(days).getByRole('button', { name: /6 ноя/i })).toBeTruthy()
   const firstDay = within(days).getByRole('button', { name: /26 окт/i })
   const secondDay = within(days).getByRole('button', { name: /27 окт/i })
   expect(firstDay.getAttribute('aria-pressed')).toBe('false')
   expect(screen.getByText('Шаг 1. Выберите день')).toBeTruthy()
   expect(screen.queryByRole('group', { name: 'Свободное время' })).toBeNull()
+  fireEvent.click(within(days).getByRole('button', { name: /24 окт/i }))
+  expect(screen.getByRole('button', { name: /24 окт.*09:00/ })).toBeTruthy()
   fireEvent.click(firstDay)
   expect(screen.getByText('Шаг 2. Выберите время')).toBeTruthy()
   expect(screen.getByRole('button', { name: /26 окт.*00:30/i })).toBeTruthy()
@@ -338,6 +345,10 @@ test('после подтверждения переход к другому т�
   fireEvent.click(screen.getByRole('button', { name: 'Забронировать' }))
   expect(await screen.findByText('Тип события: Первый тип')).toBeTruthy()
 
+  expect(screen.queryByRole('heading', { name: 'Типы событий' })).toBeNull()
+  fireEvent.click(screen.getByRole('link', { name: 'На главную' }))
+  fireEvent.click(screen.getByRole('link', { name: 'Перейти к бронированию' }))
+  expect(await screen.findByRole('heading', { name: 'Типы событий' })).toBeTruthy()
   fireEvent.click(screen.getByRole('link', { name: 'Открыть календарь: Второй тип' }))
   fireEvent.click(await screen.findByRole('button', { name: /26 окт/i }))
   expect(await screen.findByRole('button', { name: /26 окт.*10:00/ })).toBeTruthy()
